@@ -79,7 +79,7 @@ Hello, waPC!
 Alternatively you can use a `Pool` to manage a pool of instances.
 
 ```go
-    pool, err := wapc.NewPool(module, 10)
+	pool, err := wapc.NewPool(module, 10)
 	if err != nil {
 		panic(err)
 	}
@@ -88,20 +88,20 @@ Alternatively you can use a `Pool` to manage a pool of instances.
 	for i := 0; i < 100; i++ {
 		instance, err := pool.Get(10 * time.Millisecond)
 		if err != nil {
-            panic(err)
-        }
+			panic(err)
+		}
 
 		result, err := instance.Invoke(ctx, "hello", []byte("waPC"))
 		if err != nil {
-            panic(err)
-        }
+			panic(err)
+		}
 
-        fmt.Println(string(result))
+		fmt.Println(string(result))
 
 		err = pool.Return(instance)
 		if err != nil {
-            panic(err)
-        }
+			panic(err)
+		}
 	}
 ```
 
