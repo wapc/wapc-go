@@ -34,7 +34,8 @@ func TestModule(t *testing.T) {
 		return []byte("test"), nil
 	}
 
-	module, err := wapc.New(consoleLog, code, hostCall)
+	module, err := wapc.New(code, hostCall)
+	module.SetLogger(consoleLog)
 	require.NoError(t, err)
 	defer module.Close()
 

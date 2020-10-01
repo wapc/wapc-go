@@ -2,6 +2,7 @@ package wapc
 
 import (
 	"context"
+	"encoding/binary"
 	"unsafe"
 
 	"github.com/pkg/errors"
@@ -21,6 +22,7 @@ import (
 // extern void __host_error(void *context, int32_t ptr);
 //
 // extern void __console_log(void *context, int32_t ptr, int32_t len);
+// extern int32_t __fd_write(void *context, int32_t arg1, int32_t arg2, int32_t arg3, int32_t arg4);
 //
 // extern void abortModule(void *context, int32_t ptr1, int32_t len1, int32_t ptr2, int32_t len2);
 import "C"
@@ -34,7 +36,8 @@ type (
 
 	// Module represents a compile waPC module.
 	Module struct {
-		logger          Logger
+		logger          Logger // Logger to use for waPC's __console_log
+		writer          Logger // Logger to use for WASI fd_write (where fd == 1 for standard out)
 		module          wasm.Module
 		hostCallHandler HostCallHandler
 	}
@@ -53,15 +56,17 @@ func init() {
 	imports = wasm.NewImports()
 	imports.Append("abort", abortModule, C.abortModule)
 	imports.Namespace("wapc")
-	imports.Append("__guest_request", __guest_request, C.__guest_request)
-	imports.Append("__guest_response", __guest_response, C.__guest_response)
-	imports.Append("__guest_error", __guest_error, C.__guest_error)
-	imports.Append("__host_call", __host_call, C.__host_call)
-	imports.Append("__host_response_len", __host_response_len, C.__host_response_len)
-	imports.Append("__host_response", __host_response, C.__host_response)
-	imports.Append("__host_error_len", __host_error_len, C.__host_error_len)
-	imports.Append("__host_error", __host_error, C.__host_error)
-	imports.Append("__console_log", __console_log, C.__console_log)
+	imports.AppendFunction("__guest_request", __guest_request, C.__guest_request)
+	imports.AppendFunction("__guest_response", __guest_response, C.__guest_response)
+	imports.AppendFunction("__guest_error", __guest_error, C.__guest_error)
+	imports.AppendFunction("__host_call", __host_call, C.__host_call)
+	imports.AppendFunction("__host_response_len", __host_response_len, C.__host_response_len)
+	imports.AppendFunction("__host_response", __host_response, C.__host_response)
+	imports.AppendFunction("__host_error_len", __host_error_len, C.__host_error_len)
+	imports.AppendFunction("__host_error", __host_error, C.__host_error)
+	imports.AppendFunction("__console_log", __console_log, C.__console_log)
+	imports = imports.Namespace("wasi_unstable")
+	imports.AppendFunction("fd_write", __fd_write, C.__fd_write)
 }
 
 // NoOpHostCallHandler is an noop host call handler to use if your host does not need to support host calls.
@@ -70,17 +75,26 @@ func NoOpHostCallHandler(ctx context.Context, binding, namespace, operation stri
 }
 
 // New compiles a `Module` from `code`.
-func New(logger Logger, code []byte, hostCallHandler HostCallHandler) (*Module, error) {
+func New(code []byte, hostCallHandler HostCallHandler) (*Module, error) {
 	module, err := wasm.Compile(code)
 	if err != nil {
 		return nil, err
 	}
 
 	return &Module{
-		logger:          logger,
 		module:          module,
 		hostCallHandler: hostCallHandler,
 	}, nil
+}
+
+// SetLogger sets the waPC logger for __console_log calls.
+func (m *Module) SetLogger(logger Logger) {
+	m.logger = logger
+}
+
+// SetWriter sets the writer for WASI fd_write calls to standard out.
+func (m *Module) SetWriter(writer Logger) {
+	m.writer = writer
 }
 
 // Instantiate creates a single instance of the module with its own memory.
@@ -94,6 +108,7 @@ func (m *Module) Instantiate() (*Instance, error) {
 	if start, ok := instance.Exports["_start"]; ok {
 		context := functionContext{
 			logger: m.logger,
+			writer: m.writer,
 			ctx:    context.Background(),
 		}
 		instance.SetContextData(&context)
@@ -115,10 +130,16 @@ func (m *Module) Instantiate() (*Instance, error) {
 	}, nil
 }
 
+// MemorySize returns the memory length of the underlying instance.
+func (i *Instance) MemorySize() uint32 {
+	return i.instance.Memory.Length()
+}
+
 // Invoke calls `operation` with `payload` on the module and returns a byte slice payload.
 func (i *Instance) Invoke(ctx context.Context, operation string, payload []byte) ([]byte, error) {
 	context := functionContext{
 		logger:          i.m.logger,
+		writer:          i.m.writer,
 		ctx:             ctx,
 		operation:       operation,
 		guestReq:        payload,
@@ -215,12 +236,20 @@ func __console_log(context unsafe.Pointer, str int32, length int32) {
 	imp.consoleLog(instanceContext.Memory(), str, length)
 }
 
+//export __fd_write
+func __fd_write(context unsafe.Pointer, fileDescriptor, iovsPtr, iovsLen, writtenPtr int32) int32 {
+	instanceContext := wasm.IntoInstanceContext(context)
+	imp := instanceContext.Data().(*functionContext)
+	return imp.fdWrite(instanceContext.Memory(), fileDescriptor, iovsPtr, iovsLen, writtenPtr)
+}
+
 //export abortModule
 func abortModule(context unsafe.Pointer, msgPtr int32, filePtr int32, line int32, col int32) {
 }
 
 type functionContext struct {
 	logger    Logger
+	writer    Logger
 	ctx       context.Context
 	operation string
 	guestReq  []byte
@@ -302,9 +331,45 @@ func (i *functionContext) hostError(memory *wasm.Memory, ptr int32) {
 }
 
 func (i *functionContext) consoleLog(memory *wasm.Memory, str int32, len int32) {
-	data := memory.Data()
-	msg := string(data[str : str+len])
 	if i.logger != nil {
+		data := memory.Data()
+		msg := string(data[str : str+len])
 		i.logger(msg)
 	}
+}
+
+func (i *functionContext) fdWrite(memory *wasm.Memory, fileDescriptor, iovsPtr, iovsLen, writtenPtr int32) int32 {
+	// Only writing to standard out (1) is supported
+	if fileDescriptor != 1 {
+		return 0
+	}
+
+	if i.writer == nil {
+		return 0
+	}
+	data := memory.Data()
+	iov := data[iovsPtr:]
+	bytesWritten := uint32(0)
+
+	for iovsLen > 0 {
+		iovsLen--
+		base := binary.LittleEndian.Uint32(iov)
+		length := binary.LittleEndian.Uint32(iov[4:])
+		stringBytes := data[base : base+length]
+		i.writer(string(stringBytes))
+		iov = iov[8:]
+		bytesWritten += length
+	}
+
+	binary.LittleEndian.PutUint32(data[writtenPtr:], bytesWritten)
+
+	return int32(bytesWritten)
+}
+
+func Println(message string) {
+	println(message)
+}
+
+func Print(message string) {
+	print(message)
 }
