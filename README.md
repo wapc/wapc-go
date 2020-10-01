@@ -30,10 +30,12 @@ func main() {
 		panic(err)
 	}
 
-	module, err := wapc.New(consoleLog, code, hostCall)
+	module, err := wapc.New(code, hostCall)
 	if err != nil {
 		panic(err)
 	}
+	module.SetLogger(wapc.Println) // Send __console_log calls to stardard out
+	module.SetWriter(wapc.Print) // Send WASI fd_write calls to stardard out
 	defer module.Close()
 
 	instance, err := module.Instantiate()

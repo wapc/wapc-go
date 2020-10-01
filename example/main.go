@@ -21,10 +21,12 @@ func main() {
 		panic(err)
 	}
 
-	module, err := wapc.New(consoleLog, code, hostCall)
+	module, err := wapc.New(code, hostCall)
 	if err != nil {
 		panic(err)
 	}
+	module.SetLogger(wapc.Println)
+	module.SetWriter(wapc.Print)
 	defer module.Close()
 
 	instance, err := module.Instantiate()
@@ -39,10 +41,6 @@ func main() {
 	}
 
 	fmt.Println(string(result))
-}
-
-func consoleLog(msg string) {
-	fmt.Println(msg)
 }
 
 func hostCall(ctx context.Context, binding, namespace, operation string, payload []byte) ([]byte, error) {

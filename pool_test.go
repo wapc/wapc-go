@@ -17,14 +17,11 @@ func TestPool(t *testing.T) {
 	code, err := ioutil.ReadFile("testdata/hello.wasm")
 	require.NoError(t, err)
 
-	consoleLog := func(msg string) {
-	}
-
 	hostCall := func(ctx context.Context, binding, namespace, operation string, payload []byte) ([]byte, error) {
 		return []byte("test"), nil
 	}
 
-	module, err := wapc.New(consoleLog, code, hostCall)
+	module, err := wapc.New(code, hostCall)
 	require.NoError(t, err)
 	defer module.Close()
 
