@@ -6,7 +6,7 @@ import {
   consoleLog,
 } from "wapc-guest-as";
 
-export function _start(): void {
+export function wapc_init(): void {
   register("hello", hello);
   register("error", error);
 }
@@ -22,12 +22,16 @@ function error(payload: ArrayBuffer): ArrayBuffer {
   throw new Error("error occurred")
 }
 
-// This must be present in the entry file to be exported from the Wasm module.
+// waPC boilerplate code below.  Do not remove.
+
 export function __guest_call(operation_size: usize, payload_size: usize): bool {
   return handleCall(operation_size, payload_size);
 }
 
-// Abort function
-function abort(message: string | null, fileName: string | null, lineNumber: u32, columnNumber: u32): void {
+function abort(
+  message: string | null,
+  fileName: string | null,
+  lineNumber: u32,
+  columnNumber: u32): void {
   handleAbort(message, fileName, lineNumber, columnNumber);
 }

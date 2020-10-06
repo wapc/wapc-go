@@ -8,9 +8,9 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
-    "wapc-guest-as": "git+https://github.com/wapc/wapc-guest-as#v0.2.0"
+    "wapc-guest-as": "git+https://github.com/wapc/wapc-guest-as#v0.2.1"
   },
   "devDependencies": {
-    "assemblyscript": "^0.10.0"
+    "assemblyscript": "^0.14.13"
   }
 }

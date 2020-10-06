@@ -105,16 +105,19 @@ func (m *Module) Instantiate() (*Instance, error) {
 	}
 
 	// Initialize the instance of it exposes a `_start` function.
-	if start, ok := instance.Exports["_start"]; ok {
-		context := functionContext{
-			logger: m.logger,
-			writer: m.writer,
-			ctx:    context.Background(),
-		}
-		instance.SetContextData(&context)
+	initFunctions := []string{"_start", "wapc_init"}
+	for _, initFunction := range initFunctions {
+		if initFn, ok := instance.Exports[initFunction]; ok {
+			context := functionContext{
+				logger: m.logger,
+				writer: m.writer,
+				ctx:    context.Background(),
+			}
+			instance.SetContextData(&context)
 
-		if _, err := start(); err != nil {
-			return nil, errors.Wrap(err, "could not initialize instance")
+			if _, err := initFn(); err != nil {
+				return nil, errors.Wrap(err, "could not initialize instance")
+			}
 		}
 	}
 
