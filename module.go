@@ -67,6 +67,8 @@ func init() {
 	imports.AppendFunction("__console_log", __console_log, C.__console_log)
 	imports = imports.Namespace("wasi_unstable")
 	imports.AppendFunction("fd_write", __fd_write, C.__fd_write)
+	imports = imports.Namespace("wasi_snapshot_preview1")
+	imports.AppendFunction("fd_write", __fd_write, C.__fd_write)
 }
 
 // NoOpHostCallHandler is an noop host call handler to use if your host does not need to support host calls.
