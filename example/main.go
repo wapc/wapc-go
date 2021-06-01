@@ -6,7 +6,7 @@ import (
 	"io/ioutil"
 	"os"
 
-	"github.com/wapc/wapc-go"
+	"github.com/qluvio/wapc-go"
 )
 
 func main() {
