@@ -14,7 +14,7 @@ import (
 
 func TestPool(t *testing.T) {
 	ctx := context.Background()
-	code, err := ioutil.ReadFile("testdata/assemblyscript/hello.wasm")
+	code, err := ioutil.ReadFile("testdata/go/hello.wasm")
 	require.NoError(t, err)
 
 	hostCall := func(ctx context.Context, binding, namespace, operation string, payload []byte) ([]byte, error) {
