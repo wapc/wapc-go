@@ -16,7 +16,7 @@ func main() {
 	}
 	name := os.Args[1]
 	ctx := context.Background()
-	code, err := ioutil.ReadFile("testdata/hello.wasm")
+	code, err := ioutil.ReadFile("testdata/assemblyscript/hello.wasm")
 	if err != nil {
 		panic(err)
 	}

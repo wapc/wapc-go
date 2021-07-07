@@ -14,7 +14,7 @@ import (
 
 func TestModule(t *testing.T) {
 	ctx := context.Background()
-	code, err := ioutil.ReadFile("testdata/hello.wasm")
+	code, err := ioutil.ReadFile("testdata/assemblyscript/hello.wasm")
 	require.NoError(t, err)
 
 	consoleLogInvoked := false
