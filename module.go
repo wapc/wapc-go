@@ -3,10 +3,13 @@ package wapc
 import (
 	"context"
 	"encoding/binary"
+	"errors"
+	"fmt"
 
-	"github.com/pkg/errors"
 	"github.com/wasmerio/wasmer-go/wasmer"
 )
+
+const initialNumFunctions = 20
 
 type (
 	// Logger is the function to call from consoleLog inside a waPC module.
@@ -35,10 +38,12 @@ type (
 		inst *wasmer.Instance
 		mem  *wasmer.Memory
 
-		context *functionContext
+		context    *invokeContext
+		_functions [initialNumFunctions]wasmer.IntoExtern
+		functions  []wasmer.IntoExtern
 	}
 
-	functionContext struct {
+	invokeContext struct {
 		ctx       context.Context
 		operation string
 
@@ -89,10 +94,11 @@ func (m *Module) Instantiate() (*Instance, error) {
 	instance := Instance{
 		m: m,
 	}
+	instance.functions = instance._functions[:0]
 	importObject := wasmer.NewImportObject()
-	importObject.Register("env", envRuntime(m.store, &instance))
-	importObject.Register("wapc", wapcRuntime(m.store, &instance))
-	wasiRuntime := wasiRuntime(m.store, &instance)
+	importObject.Register("env", instance.addFunctions(envRuntime(m.store, &instance)))
+	importObject.Register("wapc", instance.addFunctions(wapcRuntime(m.store, &instance)))
+	wasiRuntime := instance.addFunctions(wasiRuntime(m.store, &instance))
 	importObject.Register("wasi_unstable", wasiRuntime)
 	importObject.Register("wasi_snapshot_preview1", wasiRuntime)
 	importObject.Register("wasi", wasiRuntime)
@@ -107,13 +113,13 @@ func (m *Module) Instantiate() (*Instance, error) {
 	initFunctions := []string{"_start", "wapc_init"}
 	for _, initFunction := range initFunctions {
 		if initFn, err := inst.Exports.GetFunction(initFunction); err == nil {
-			context := functionContext{
+			context := invokeContext{
 				ctx: context.Background(),
 			}
 			instance.context = &context
 
 			if _, err := initFn(); err != nil {
-				return nil, errors.Wrap(err, "could not initialize instance")
+				return nil, fmt.Errorf("could not initialize instance: %w", err)
 			}
 		}
 	}
@@ -319,6 +325,14 @@ func wasiRuntime(store *wasmer.Store, inst *Instance) map[string]wasmer.IntoExte
 	}
 }
 
+// addFunctions adds external functions to a slice so that they are not garbage collected.
+func (i *Instance) addFunctions(f map[string]wasmer.IntoExtern) map[string]wasmer.IntoExtern {
+	for _, ie := range f {
+		i.functions = append(i.functions, ie)
+	}
+	return f
+}
+
 // MemorySize returns the memory length of the underlying instance.
 func (i *Instance) MemorySize() uint32 {
 	return uint32(i.mem.DataSize())
@@ -326,7 +340,7 @@ func (i *Instance) MemorySize() uint32 {
 
 // Invoke calls `operation` with `payload` on the module and returns a byte slice payload.
 func (i *Instance) Invoke(ctx context.Context, operation string, payload []byte) ([]byte, error) {
-	context := functionContext{
+	context := invokeContext{
 		ctx:       ctx,
 		operation: operation,
 		guestReq:  payload,
@@ -336,9 +350,9 @@ func (i *Instance) Invoke(ctx context.Context, operation string, payload []byte)
 	successValue, err := i.guestCall(len(operation), len(payload))
 	if err != nil {
 		if context.guestErr != "" {
-			return nil, errors.WithStack(errors.New(context.guestErr))
+			return nil, errors.New(context.guestErr)
 		}
-		return nil, errors.Wrap(err, "error invoking guest")
+		return nil, fmt.Errorf("error invoking guest: %w", err)
 	}
 	successI32, _ := successValue.(int32)
 	success := successI32 == 1
@@ -347,19 +361,25 @@ func (i *Instance) Invoke(ctx context.Context, operation string, payload []byte)
 		return context.guestResp, nil
 	}
 
-	return nil, errors.WithStack(errors.Errorf("call to %q was unsuccessful", operation))
+	return nil, fmt.Errorf("call to %q was unsuccessful", operation)
 }
 
 // Close closes the single instance.  This should be called before calling `Close` on the Module itself.
 func (i *Instance) Close() {
-	// This is for backward compatibility.
-	// The latest version of wasmer now uses the GC/finalizer to clean up resources.
+	// Explicitly release handles on wasmer types so they can be GC'ed.
+	i.inst = nil
+	i.mem = nil
+	i.functions = i._functions[:0]
+	i._functions = [initialNumFunctions]wasmer.IntoExtern{}
+	i.context = nil
 }
 
 // Close closes the module.  This should be called after calling `Close` on any instances that were created.
 func (m *Module) Close() {
-	// This is for backward compatibility.
-	// The latest version of wasmer now uses the GC/finalizer to clean up resources.
+	// Explicitly release handles on wasmer types so they can be GC'ed.
+	m.module = nil
+	m.store = nil
+	m.engine = nil
 }
 
 func Println(message string) {
