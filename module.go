@@ -50,6 +50,8 @@ type (
 		consoleLog      *wasmer.Function
 		abort           *wasmer.Function
 		fdWrite         *wasmer.Function
+		argsSizesGet    *wasmer.Function
+		argsGet         *wasmer.Function
 	}
 
 	invokeContext struct {
@@ -117,6 +119,16 @@ func (m *Module) Instantiate() (*Instance, error) {
 	}
 	instance.inst = inst
 
+	instance.mem, err = inst.Exports.GetMemory("memory")
+	if err != nil {
+		return nil, err
+	}
+
+	instance.guestCall, err = inst.Exports.GetFunction("__guest_call")
+	if err != nil {
+		return nil, errors.New("could not find exported function '__guest_call'")
+	}
+
 	// Initialize the instance of it exposes a `_start` function.
 	initFunctions := []string{"_start", "wapc_init"}
 	for _, initFunction := range initFunctions {
@@ -130,16 +142,6 @@ func (m *Module) Instantiate() (*Instance, error) {
 				return nil, fmt.Errorf("could not initialize instance: %w", err)
 			}
 		}
-	}
-
-	instance.guestCall, err = inst.Exports.GetFunction("__guest_call")
-	if err != nil {
-		return nil, errors.New("could not find exported function '__guest_call'")
-	}
-
-	instance.mem, err = inst.Exports.GetMemory("memory")
-	if err != nil {
-		return nil, err
 	}
 
 	return &instance, nil
@@ -340,8 +342,33 @@ func (i *Instance) wasiRuntime() map[string]wasmer.IntoExtern {
 		},
 	)
 
+	i.argsSizesGet = wasmer.NewFunction(
+		i.m.store,
+		wasmer.NewFunctionType(wasmer.NewValueTypes(wasmer.I32, wasmer.I32), wasmer.NewValueTypes(wasmer.I32)),
+		func(args []wasmer.Value) ([]wasmer.Value, error) {
+			argc := args[0].I32()
+			argvBufSize := args[1].I32()
+			data := i.mem.Data()
+
+			binary.LittleEndian.PutUint32(data[argc:], 0)
+			binary.LittleEndian.PutUint32(data[argvBufSize:], 0)
+
+			return []wasmer.Value{wasmer.NewI32(0)}, nil
+		},
+	)
+
+	i.argsGet = wasmer.NewFunction(
+		i.m.store,
+		wasmer.NewFunctionType(wasmer.NewValueTypes(wasmer.I32, wasmer.I32), wasmer.NewValueTypes(wasmer.I32)),
+		func(args []wasmer.Value) ([]wasmer.Value, error) {
+			return []wasmer.Value{wasmer.NewI32(0)}, nil
+		},
+	)
+
 	return map[string]wasmer.IntoExtern{
-		"fd_write": i.fdWrite,
+		"fd_write":       i.fdWrite,
+		"args_sizes_get": i.argsSizesGet,
+		"args_get":       i.argsGet,
 	}
 }
 
