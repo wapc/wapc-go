@@ -50,7 +50,7 @@ func TestModule(t *testing.T) {
 	assert.True(t, consoleLogInvoked)
 	assert.True(t, hostCallInvoked)
 
-	result, err = instance.Invoke(ctx, "error", []byte("waPC"))
+	_, err = instance.Invoke(ctx, "error", []byte("waPC"))
 	require.Error(t, err)
 
 	msg := err.Error()
