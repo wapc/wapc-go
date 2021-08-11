@@ -430,10 +430,12 @@ func (m *Module) Close() {
 	m.engine = nil
 }
 
+// Println will print the supplied message to standard error. Newline is appended to the end of the message.
 func Println(message string) {
 	println(message)
 }
 
+// Print will print the supplied message to standard error.
 func Print(message string) {
 	print(message)
 }
