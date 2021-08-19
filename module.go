@@ -379,6 +379,11 @@ func (i *Instance) MemorySize() uint32 {
 
 // Invoke calls `operation` with `payload` on the module and returns a byte slice payload.
 func (i *Instance) Invoke(ctx context.Context, operation string, payload []byte) ([]byte, error) {
+	// Make sure instance isn't closed to avoid panics
+	if i.inst == nil {
+		return nil, fmt.Errorf("error invoking guest with closed instance")
+	}
+
 	context := invokeContext{
 		ctx:       ctx,
 		operation: operation,
