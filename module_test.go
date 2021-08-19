@@ -1,75 +1,87 @@
-package wapc_test
+package wapc
 
 import (
 	"context"
 	"io/ioutil"
-	"strings"
 	"testing"
-
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
-
-	"github.com/wapc/wapc-go"
+	"time"
 )
 
-func TestModule(t *testing.T) {
-
+func TestGuests(t *testing.T) {
 	lang := map[string]string{
 		"assemblyscript": "as/hello.wasm",
 		"go":             "go/hello.wasm",
 	}
 
 	for l, p := range lang {
-
 		t.Run("Module testing with "+l+" Guest", func(t *testing.T) {
-			ctx := context.Background()
-			code, err := ioutil.ReadFile("testdata/" + p)
-			require.NoError(t, err)
-
-			consoleLogInvoked := false
-			hostCallInvoked := false
-
-			consoleLog := func(msg string) {
-				assert.Equal(t, "logging something", msg)
-				consoleLogInvoked = true
+			// Read .wasm file
+			b, err := ioutil.ReadFile("testdata/" + p)
+			if err != nil {
+				t.Errorf("Unable to open test file - %s", err)
 			}
 
-			hostCall := func(ctx context.Context, binding, namespace, operation string, payload []byte) ([]byte, error) {
-				assert.Equal(t, "myBinding", binding)
-				assert.Equal(t, "sample", namespace)
-				assert.Equal(t, "hello", operation)
-				assert.Equal(t, "Simon", string(payload))
-				hostCallInvoked = true
-				return []byte("test"), nil
+			// Use these later
+			callbackCh := make(chan struct{}, 2)
+			payload := []byte("Testing")
+
+			// Create new module with a callback function
+			m, err := New(b, func(context.Context, string, string, string, []byte) ([]byte, error) {
+				callbackCh <- struct{}{}
+				return []byte(""), nil
+			})
+			if err != nil {
+				t.Errorf("Error creating module - %s", err)
 			}
+			defer m.Close()
 
-			module, err := wapc.New(code, hostCall)
-			module.SetLogger(consoleLog)
-			require.NoError(t, err)
-			defer module.Close()
+			// Set loggers and writers
+			m.SetLogger(Println)
+			m.SetWriter(Print)
 
-			instance, err := module.Instantiate()
-			require.NoError(t, err)
-			defer instance.Close()
-
-			result, err := instance.Invoke(ctx, "hello", []byte("waPC"))
-			require.NoError(t, err)
-
-			assert.Equal(t, "Hello, waPC", string(result))
-			assert.True(t, consoleLogInvoked)
-			assert.True(t, hostCallInvoked)
-
-			_, err = instance.Invoke(ctx, "error", []byte("waPC"))
-			require.Error(t, err)
-
-			msg := err.Error()
-			index := strings.IndexByte(msg, ';')
-			if index != -1 {
-				msg = msg[:index]
+			// Instantiate Module
+			i, err := m.Instantiate()
+			if err != nil {
+				t.Errorf("Error intantiating module - %s", err)
 			}
-			assert.Equal(t, "error occurred", msg)
+			defer i.Close()
+
+			t.Run("Call Successful Function", func(t *testing.T) {
+				// Call echo function
+				r, err := i.Invoke(context.Background(), "echo", payload)
+				if err != nil {
+					t.Errorf("Unexpected error when calling wasm module - %s", err)
+				}
+
+				// Verify payload is returned
+				if len(r) != len(payload) {
+					t.Errorf("Unexpected response message, got %s, expected %s", r, payload)
+				}
+
+				// Verify if callback is called
+				select {
+				case <-time.After(5 * time.Second):
+					t.Errorf("Timeout waiting for callback execution")
+				case <-callbackCh:
+					return
+				}
+			})
+
+			t.Run("Call Failing Function", func(t *testing.T) {
+				// Call nope function
+				_, err := i.Invoke(context.Background(), "nope", payload)
+				if err == nil {
+					t.Errorf("Expected error when calling failing function, got nil")
+				}
+			})
+
+			t.Run("Call Unregistered Function", func(t *testing.T) {
+				_, err := i.Invoke(context.Background(), "404", payload)
+				if err == nil {
+					t.Errorf("Expected error when calling unregistered function, got nil")
+				}
+			})
 
 		})
-
 	}
 }

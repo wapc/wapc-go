@@ -7,12 +7,17 @@ import (
 
 func main() {
 	wapc.RegisterFunctions(wapc.Functions{
-		"hello": hello,
+		"echo": echo,
+		"nope": fail,
 	})
 }
 
-func hello(payload []byte) ([]byte, error) {
-	wapc.HostCall("myBinding", "sample", "hello", []byte("Simon"))
-	greeting := fmt.Sprintf("Hello, %s", payload)
-	return []byte(greeting), nil
+func echo(payload []byte) ([]byte, error) {
+	// Callback with Payload
+	wapc.HostCall("wapc", "testing", "echo", payload)
+	return payload, nil
+}
+
+func fail(payload []byte) ([]byte, error) {
+	return []byte(""), fmt.Errorf("Planned Failure")
 }
