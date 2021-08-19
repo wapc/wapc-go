@@ -11,6 +11,7 @@ func TestGuestsWithPool(t *testing.T) {
 	lang := map[string]string{
 		"assemblyscript": "as/hello.wasm",
 		"go":             "go/hello.wasm",
+		"rust":           "rust/hello.wasm",
 	}
 
 	for l, p := range lang {

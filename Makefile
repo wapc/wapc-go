@@ -1,7 +1,17 @@
 # Makefile to build an execute tests
 
-tests: build-as
+tests: 
+	mkdir -p .coverage
+	go test -v -covermode=count -coverprofile=.coverage/coverage.out ./...
+	go tool cover -html=.coverage/coverage.out -o .coverage/coverage.html
+
+build-data: build-as build-go build-rust
 
 build-as:
-	@echo "Building AssemblyScript Testdata"
-	docker run -v `pwd`/testdata/as:/usr/app/ asc hello.ts -b hello.wasm --config tsconfig.json 
+	$(MAKE) -C testdata/as build
+
+build-go:
+	$(MAKE) -C testdata/go build
+
+build-rust:
+	$(MAKE) -C testdata/rust build
