@@ -1,4 +1,4 @@
-# Makefile to build an execute tests
+# Makefile to build and execute tests
 
 tests: 
 	@echo "Executing Go tests"
