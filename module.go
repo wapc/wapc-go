@@ -151,7 +151,9 @@ func (i *Instance) envRuntime() map[string]wasmer.IntoExtern {
 	// abort is for assemblyscript
 	i.abort = wasmer.NewFunction(
 		i.m.store,
-		wasmer.NewFunctionType(wasmer.NewValueTypes(wasmer.I32, wasmer.I32, wasmer.I32, wasmer.I32), wasmer.NewValueTypes()),
+		wasmer.NewFunctionType(
+			wasmer.NewValueTypes(wasmer.I32, wasmer.I32, wasmer.I32, wasmer.I32),
+			wasmer.NewValueTypes()),
 		func(args []wasmer.Value) ([]wasmer.Value, error) {
 			return []wasmer.Value{}, nil
 		},
