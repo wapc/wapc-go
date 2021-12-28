@@ -395,11 +395,12 @@ func (i *Instance) Invoke(ctx context.Context, operation string, payload []byte)
 
 	successValue, err := i.guestCall(len(operation), len(payload))
 	if err != nil {
-		if context.guestErr != "" {
-			return nil, errors.New(context.guestErr)
-		}
 		return nil, fmt.Errorf("error invoking guest: %w", err)
 	}
+	if context.guestErr != "" {
+		return nil, errors.New(context.guestErr)
+	}
+
 	successI32, _ := successValue.(int32)
 	success := successI32 == 1
 
