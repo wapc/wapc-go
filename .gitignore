@@ -1,2 +1,29 @@
+# Binaries for programs and plugins
+*.exe
+*.dll
+*.so
+*.dylib
+
+# Test binary, build with `go test -c`
+*.test
+
+# Output of the go coverage tool, specifically when used with LiteIDE
+*.out
+
+# Coverage
+.coverage/
+
+# No Swapfiles
+*.swp
+
+# Rust build Directory
+target/
+
+# npm Modules
 node_modules
+
+# Vendor
 vendor
+
+# Mac stuff
+.DS_Store
