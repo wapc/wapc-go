@@ -14,8 +14,10 @@ import (
 	"fmt"
 	"io/ioutil"
 	"os"
+	"strings"
 
 	"github.com/wapc/wapc-go"
+	"github.com/wapc/wapc-go/engines/wasmer"
 )
 
 func main() {
@@ -25,17 +27,19 @@ func main() {
 	}
 	name := os.Args[1]
 	ctx := context.Background()
-	code, err := ioutil.ReadFile("testdata/hello.wasm")
+	code, err := ioutil.ReadFile("hello/hello.wasm")
 	if err != nil {
 		panic(err)
 	}
 
-	module, err := wapc.New(code, hostCall)
+	engine := wasmer.Engine()
+
+	module, err := engine.New(code, hostCall)
 	if err != nil {
 		panic(err)
 	}
-	module.SetLogger(wapc.Println) // Send __console_log calls to stardard out
-	module.SetWriter(wapc.Print) // Send WASI fd_write calls to stardard out
+	module.SetLogger(wapc.Println)
+	module.SetWriter(wapc.Print)
 	defer module.Close()
 
 	instance, err := module.Instantiate()
@@ -52,18 +56,16 @@ func main() {
 	fmt.Println(string(result))
 }
 
-func consoleLog(msg string) {
-	fmt.Println(msg)
-}
-
 func hostCall(ctx context.Context, binding, namespace, operation string, payload []byte) ([]byte, error) {
 	// Route the payload to any custom functionality accordingly.
 	// You can even route to other waPC modules!!!
 	switch namespace {
-	case "foo":
+	case "example":
 		switch operation {
-		case "echo":
-			return payload, nil // echo
+		case "capitalize":
+			name := string(payload)
+			name = strings.Title(name)
+			return []byte(name), nil
 		}
 	}
 	return []byte("default"), nil
@@ -74,8 +76,8 @@ To see this in action, enter the following in your shell:
 
 ```
 $ go run example/main.go waPC!
-logging something
-Hello, waPC!
+hello called
+Hello, WaPC!
 ```
 
 Alternatively you can use a `Pool` to manage a pool of instances.

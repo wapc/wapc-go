@@ -1,27 +1,26 @@
-package wapc
+package wasmer
 
 import (
 	"context"
 	"encoding/binary"
 	"errors"
 	"fmt"
+	"time"
 
 	"github.com/wasmerio/wasmer-go/wasmer"
+
+	"github.com/wapc/wapc-go"
 )
 
 type (
-	// Logger is the function to call from consoleLog inside a waPC module.
-	Logger func(msg string)
-
-	// HostCallHandler is a function to invoke to handle when a guest is performing a host call.
-	HostCallHandler func(ctx context.Context, binding, namespace, operation string, payload []byte) ([]byte, error)
+	engine struct{}
 
 	// Module represents a compile waPC module.
 	Module struct {
-		logger Logger // Logger to use for waPC's __console_log
-		writer Logger // Logger to use for WASI fd_write (where fd == 1 for standard out)
+		logger wapc.Logger // Logger to use for waPC's __console_log
+		writer wapc.Logger // Logger to use for WASI fd_write (where fd == 1 for standard out)
 
-		hostCallHandler HostCallHandler
+		hostCallHandler wapc.HostCallHandler
 
 		engine *wasmer.Engine
 		store  *wasmer.Store
@@ -38,7 +37,7 @@ type (
 
 		context *invokeContext
 
-		// external functions
+		// waPC functions
 		guestRequest    *wasmer.Function
 		guestResponse   *wasmer.Function
 		guestError      *wasmer.Function
@@ -48,10 +47,25 @@ type (
 		hostErrorLen    *wasmer.Function
 		hostError       *wasmer.Function
 		consoleLog      *wasmer.Function
-		abort           *wasmer.Function
-		fdWrite         *wasmer.Function
-		argsSizesGet    *wasmer.Function
-		argsGet         *wasmer.Function
+
+		// AssemblyScript functions
+		abort *wasmer.Function
+
+		// WASI functions
+		fdWrite          *wasmer.Function
+		fdClose          *wasmer.Function
+		fdFdstatGet      *wasmer.Function
+		fdPrestatGet     *wasmer.Function
+		fdPrestatDirName *wasmer.Function
+		fdRead           *wasmer.Function
+		fdSeek           *wasmer.Function
+		pathOpen         *wasmer.Function
+		procExit         *wasmer.Function
+		argsSizesGet     *wasmer.Function
+		argsGet          *wasmer.Function
+		clockTimeGet     *wasmer.Function
+		environSizesGet  *wasmer.Function
+		environGet       *wasmer.Function
 	}
 
 	invokeContext struct {
@@ -67,13 +81,22 @@ type (
 	}
 )
 
-// NoOpHostCallHandler is an noop host call handler to use if your host does not need to support host calls.
-func NoOpHostCallHandler(ctx context.Context, binding, namespace, operation string, payload []byte) ([]byte, error) {
-	return []byte{}, nil
+// Ensure the engine conforms to the waPC interface.
+var _ = (wapc.Module)((*Module)(nil))
+var _ = (wapc.Instance)((*Instance)(nil))
+
+var engineInstance = engine{}
+
+func Engine() wapc.Engine {
+	return &engineInstance
+}
+
+func (e *engine) Name() string {
+	return "wasmer"
 }
 
 // New compiles a `Module` from `code`.
-func New(code []byte, hostCallHandler HostCallHandler) (*Module, error) {
+func (e *engine) New(code []byte, hostCallHandler wapc.HostCallHandler) (wapc.Module, error) {
 	engine := wasmer.NewEngine()
 	store := wasmer.NewStore(engine)
 
@@ -91,17 +114,17 @@ func New(code []byte, hostCallHandler HostCallHandler) (*Module, error) {
 }
 
 // SetLogger sets the waPC logger for __console_log calls.
-func (m *Module) SetLogger(logger Logger) {
+func (m *Module) SetLogger(logger wapc.Logger) {
 	m.logger = logger
 }
 
 // SetWriter sets the writer for WASI fd_write calls to standard out.
-func (m *Module) SetWriter(writer Logger) {
+func (m *Module) SetWriter(writer wapc.Logger) {
 	m.writer = writer
 }
 
 // Instantiate creates a single instance of the module with its own memory.
-func (m *Module) Instantiate() (*Instance, error) {
+func (m *Module) Instantiate() (wapc.Instance, error) {
 	instance := Instance{
 		m: m,
 	}
@@ -344,10 +367,84 @@ func (i *Instance) wasiRuntime() map[string]wasmer.IntoExtern {
 		},
 	)
 
+	i.fdClose = wasmer.NewFunction(
+		i.m.store,
+		wasmer.NewFunctionType(wasmer.NewValueTypes(wasmer.I32), wasmer.NewValueTypes(wasmer.I32)),
+		func(args []wasmer.Value) ([]wasmer.Value, error) {
+			// Not implemented.
+			return []wasmer.Value{wasmer.NewI32(8)}, nil
+		},
+	)
+
+	i.fdPrestatGet = wasmer.NewFunction(
+		i.m.store,
+		wasmer.NewFunctionType(wasmer.NewValueTypes(wasmer.I32, wasmer.I32), wasmer.NewValueTypes(wasmer.I32)),
+		func(args []wasmer.Value) ([]wasmer.Value, error) {
+			// Not implemented.
+			return []wasmer.Value{wasmer.NewI32(8)}, nil
+		},
+	)
+
+	i.fdPrestatDirName = wasmer.NewFunction(
+		i.m.store,
+		wasmer.NewFunctionType(wasmer.NewValueTypes(wasmer.I32, wasmer.I32, wasmer.I32), wasmer.NewValueTypes(wasmer.I32)),
+		func(args []wasmer.Value) ([]wasmer.Value, error) {
+			// Not implemented.
+			return []wasmer.Value{wasmer.NewI32(8)}, nil
+		},
+	)
+
+	i.fdRead = wasmer.NewFunction(
+		i.m.store,
+		wasmer.NewFunctionType(wasmer.NewValueTypes(wasmer.I32, wasmer.I32, wasmer.I32, wasmer.I32), wasmer.NewValueTypes(wasmer.I32)),
+		func(args []wasmer.Value) ([]wasmer.Value, error) {
+			// Not implemented.
+			return []wasmer.Value{wasmer.NewI32(8)}, nil
+		},
+	)
+
+	i.fdSeek = wasmer.NewFunction(
+		i.m.store,
+		wasmer.NewFunctionType(wasmer.NewValueTypes(wasmer.I32, wasmer.I64, wasmer.I32, wasmer.I32), wasmer.NewValueTypes(wasmer.I32)),
+		func(args []wasmer.Value) ([]wasmer.Value, error) {
+			// Not implemented.
+			return []wasmer.Value{wasmer.NewI32(8)}, nil
+		},
+	)
+
+	i.pathOpen = wasmer.NewFunction(
+		i.m.store,
+		wasmer.NewFunctionType(wasmer.NewValueTypes(wasmer.I32, wasmer.I32, wasmer.I32, wasmer.I32, wasmer.I32,
+			wasmer.I64, wasmer.I64, wasmer.I32, wasmer.I32), wasmer.NewValueTypes(wasmer.I32)),
+		func(args []wasmer.Value) ([]wasmer.Value, error) {
+			// Not implemented.
+			return []wasmer.Value{wasmer.NewI32(28)}, nil
+		},
+	)
+
+	i.procExit = wasmer.NewFunction(
+		i.m.store,
+		wasmer.NewFunctionType(wasmer.NewValueTypes(wasmer.I32), wasmer.NewValueTypes()),
+		func(args []wasmer.Value) ([]wasmer.Value, error) {
+			// Not implemented.
+			return []wasmer.Value{wasmer.NewI32(0)}, nil
+		},
+	)
+
+	i.fdFdstatGet = wasmer.NewFunction(
+		i.m.store,
+		wasmer.NewFunctionType(wasmer.NewValueTypes(wasmer.I32, wasmer.I32), wasmer.NewValueTypes(wasmer.I32)),
+		func(args []wasmer.Value) ([]wasmer.Value, error) {
+			// Not implemented.
+			return []wasmer.Value{wasmer.NewI32(8)}, nil
+		},
+	)
+
 	i.argsSizesGet = wasmer.NewFunction(
 		i.m.store,
 		wasmer.NewFunctionType(wasmer.NewValueTypes(wasmer.I32, wasmer.I32), wasmer.NewValueTypes(wasmer.I32)),
 		func(args []wasmer.Value) ([]wasmer.Value, error) {
+			// Not implemented.
 			argc := args[0].I32()
 			argvBufSize := args[1].I32()
 			data := i.mem.Data()
@@ -363,14 +460,57 @@ func (i *Instance) wasiRuntime() map[string]wasmer.IntoExtern {
 		i.m.store,
 		wasmer.NewFunctionType(wasmer.NewValueTypes(wasmer.I32, wasmer.I32), wasmer.NewValueTypes(wasmer.I32)),
 		func(args []wasmer.Value) ([]wasmer.Value, error) {
+			// Not implemented.
+			return []wasmer.Value{wasmer.NewI32(0)}, nil
+		},
+	)
+
+	i.environSizesGet = wasmer.NewFunction(
+		i.m.store,
+		wasmer.NewFunctionType(wasmer.NewValueTypes(wasmer.I32, wasmer.I32), wasmer.NewValueTypes(wasmer.I32)),
+		func(args []wasmer.Value) ([]wasmer.Value, error) {
+			// Not implemented.
+			return []wasmer.Value{wasmer.NewI32(0)}, nil
+		},
+	)
+
+	i.environGet = wasmer.NewFunction(
+		i.m.store,
+		wasmer.NewFunctionType(wasmer.NewValueTypes(wasmer.I32, wasmer.I32), wasmer.NewValueTypes(wasmer.I32)),
+		func(args []wasmer.Value) ([]wasmer.Value, error) {
+			// Not implemented.
+			return []wasmer.Value{wasmer.NewI32(0)}, nil
+		},
+	)
+
+	i.clockTimeGet = wasmer.NewFunction(
+		i.m.store,
+		wasmer.NewFunctionType(wasmer.NewValueTypes(wasmer.I32, wasmer.I64, wasmer.I32), wasmer.NewValueTypes(wasmer.I32)),
+		func(args []wasmer.Value) ([]wasmer.Value, error) {
+			//(ctx *wasm.HostFunctionCallContext, id uint32, precision uint64, timestampPtr uint32) (err Errno) {
+			data := i.mem.Data()
+			timestampPtr := args[2].I32()
+			nanos := uint64(time.Now().UnixNano())
+			binary.LittleEndian.PutUint64(data[timestampPtr:], nanos)
 			return []wasmer.Value{wasmer.NewI32(0)}, nil
 		},
 	)
 
 	return map[string]wasmer.IntoExtern{
-		"fd_write":       i.fdWrite,
-		"args_sizes_get": i.argsSizesGet,
-		"args_get":       i.argsGet,
+		"fd_write":            i.fdWrite,
+		"fd_close":            i.fdClose,
+		"fd_fdstat_get":       i.fdFdstatGet,
+		"fd_prestat_get":      i.fdPrestatGet,
+		"fd_prestat_dir_name": i.fdPrestatDirName,
+		"fd_read":             i.fdRead,
+		"fd_seek":             i.fdSeek,
+		"path_open":           i.pathOpen,
+		"proc_exit":           i.procExit,
+		"args_sizes_get":      i.argsSizesGet,
+		"args_get":            i.argsGet,
+		"environ_sizes_get":   i.environSizesGet,
+		"environ_get":         i.environGet,
+		"clock_time_get":      i.clockTimeGet,
 	}
 }
 
@@ -436,14 +576,4 @@ func (m *Module) Close() {
 	m.module = nil
 	m.store = nil
 	m.engine = nil
-}
-
-// Println will print the supplied message to standard error. Newline is appended to the end of the message.
-func Println(message string) {
-	println(message)
-}
-
-// Print will print the supplied message to standard error.
-func Print(message string) {
-	print(message)
 }
