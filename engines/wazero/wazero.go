@@ -135,7 +135,9 @@ func (m *Module) SetWriter(writer wapc.Logger) {
 	m.writer = writer
 }
 
-func (m *Module) env_abort(ctx wasm.ModuleContext, arg1 int32, arg2 int32, arg3 int32, arg4 int32) {
+// env_abort is the AssemblyScript abort handler
+func (m *Module) env_abort(ctx wasm.ModuleContext, messageOffset, fileOffset, line, col uint32) {
+	// TODO call proc_raise(abrt)
 }
 
 func (m *Module) wapc_guest_request(ctx wasm.ModuleContext, operationPtr, payloadPtr uint32) {
@@ -302,6 +304,7 @@ func (i *Instance) Invoke(ctx context.Context, operation string, payload []byte)
 // Close closes the single instance.  This should be called before calling `Close` on the Module itself.
 func (i *Instance) Close() {
 	i.closed = true
+	// TODO: i.module.Close() https://github.com/tetratelabs/wazero/issues/293
 }
 
 // Close closes the module.  This should be called after calling `Close` on any instances that were created.
