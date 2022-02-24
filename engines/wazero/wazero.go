@@ -137,7 +137,7 @@ func (m *Module) SetWriter(writer wapc.Logger) {
 
 // env_abort is the AssemblyScript abort handler
 func (m *Module) env_abort(ctx wasm.ModuleContext, messageOffset, fileOffset, line, col uint32) {
-	// TODO call proc_raise(abrt)
+	// TODO signal somewhere or call Close()? We don't need to indirect through WASI proc_raise I think
 }
 
 func (m *Module) wapc_guest_request(ctx wasm.ModuleContext, operationPtr, payloadPtr uint32) {
