@@ -5,8 +5,10 @@ import (
 	"fmt"
 	"io/ioutil"
 	"os"
+	"strings"
 
 	"github.com/wapc/wapc-go"
+	"github.com/wapc/wapc-go/engines/wasmer"
 )
 
 func main() {
@@ -16,12 +18,14 @@ func main() {
 	}
 	name := os.Args[1]
 	ctx := context.Background()
-	code, err := ioutil.ReadFile("testdata/hello.wasm")
+	code, err := ioutil.ReadFile("hello/hello.wasm")
 	if err != nil {
 		panic(err)
 	}
 
-	module, err := wapc.New(code, hostCall)
+	engine := wasmer.Engine()
+
+	module, err := engine.New(code, hostCall)
 	if err != nil {
 		panic(err)
 	}
@@ -47,10 +51,12 @@ func hostCall(ctx context.Context, binding, namespace, operation string, payload
 	// Route the payload to any custom functionality accordingly.
 	// You can even route to other waPC modules!!!
 	switch namespace {
-	case "foo":
+	case "example":
 		switch operation {
-		case "echo":
-			return payload, nil // echo
+		case "capitalize":
+			name := string(payload)
+			name = strings.Title(name)
+			return []byte(name), nil
 		}
 	}
 	return []byte("default"), nil
