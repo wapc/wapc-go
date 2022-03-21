@@ -240,10 +240,11 @@ func (m *Module) Instantiate() (wapc.Instance, error) {
 
 	// Initialize the instance of it exposes a `_start` function.
 	initFunctions := []string{functionStart, functionInit}
+	ctx := context.Background()
 	for _, name := range initFunctions {
 		if fn := exports.Function(name); fn == nil {
 			continue // init functions are optional
-		} else if _, err = fn.Call(nil); err != nil {
+		} else if _, err = fn.Call(ctx); err != nil {
 			return nil, fmt.Errorf("module[%s] function[%s] failed: %w", moduleName, name, err)
 		}
 	}
