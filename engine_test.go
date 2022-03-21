@@ -54,7 +54,7 @@ func TestGuests(t *testing.T) {
 					// Instantiate Module
 					i, err := m.Instantiate()
 					if err != nil {
-						t.Errorf("Error intantiating module - %s", err)
+						t.Errorf("Error instantiating module - %s", err)
 					}
 					defer i.Close()
 
@@ -138,7 +138,7 @@ func TestModule(t *testing.T) {
 			// Instantiate Module
 			i, err := m.Instantiate()
 			if err != nil {
-				t.Errorf("Error intantiating module - %s", err)
+				t.Errorf("Error instantiating module - %s", err)
 			}
 			defer i.Close()
 
