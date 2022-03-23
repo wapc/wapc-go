@@ -8,11 +8,13 @@ import (
 
 	"github.com/wapc/wapc-go"
 	"github.com/wapc/wapc-go/engines/wasmer"
+	"github.com/wapc/wapc-go/engines/wasmtime"
 	"github.com/wapc/wapc-go/engines/wazero"
 )
 
 var engines = []wapc.Engine{
 	wasmer.Engine(),
+	wasmtime.Engine(),
 	wazero.Engine(),
 }
 

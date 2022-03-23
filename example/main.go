@@ -2,28 +2,60 @@ package main
 
 import (
 	"context"
+	"flag"
 	"fmt"
 	"io/ioutil"
+	"log"
 	"os"
 	"strings"
 
 	"github.com/wapc/wapc-go"
-	"github.com/wapc/wapc-go/engines/wasmer"
+	"github.com/wapc/wapc-go/engines/wasmtime"
 )
 
-func main() {
-	if len(os.Args) < 2 {
-		fmt.Println("usage: hello <name>")
-		return
+type Settings struct {
+	ModulePath   string
+	WaPCFunction string
+	Message      string
+}
+
+func cli() Settings {
+	var modulePath, wapcFunction string
+
+	flag.StringVar(&modulePath, "m", "", "Path to the Wasm module to be loaded")
+	flag.StringVar(&wapcFunction, "f", "echo", "Name of the waPC function to invoke")
+
+	flag.Parse()
+	if modulePath == "" {
+		os.Stderr.WriteString("Must provide path to the Wasm module to load")
+		flag.PrintDefaults()
+		os.Exit(1)
 	}
-	name := os.Args[1]
+
+	if flag.NArg() == 0 {
+		os.Stderr.WriteString("Must provide payload message for waPC function")
+		flag.PrintDefaults()
+		os.Exit(1)
+	}
+	msg := flag.Arg(0)
+
+	return Settings{
+		ModulePath:   modulePath,
+		Message:      msg,
+		WaPCFunction: wapcFunction,
+	}
+}
+
+func main() {
+	settings := cli()
+
 	ctx := context.Background()
-	code, err := ioutil.ReadFile("hello/hello.wasm")
+	code, err := ioutil.ReadFile(settings.ModulePath)
 	if err != nil {
 		panic(err)
 	}
 
-	engine := wasmer.Engine()
+	engine := wasmtime.Engine()
 
 	module, err := engine.New(code, hostCall)
 	if err != nil {
@@ -39,7 +71,7 @@ func main() {
 	}
 	defer instance.Close()
 
-	result, err := instance.Invoke(ctx, "hello", []byte(name))
+	result, err := instance.Invoke(ctx, settings.WaPCFunction, []byte(settings.Message))
 	if err != nil {
 		panic(err)
 	}
@@ -48,6 +80,11 @@ func main() {
 }
 
 func hostCall(ctx context.Context, binding, namespace, operation string, payload []byte) ([]byte, error) {
+	log.Println("host callback")
+	log.Printf("binding: %s\n", binding)
+	log.Printf("namespace: %s\n", namespace)
+	log.Printf("operation: %s\n", operation)
+	log.Printf("payload: %s\n", string(payload))
 	// Route the payload to any custom functionality accordingly.
 	// You can even route to other waPC modules!!!
 	switch namespace {
@@ -57,6 +94,11 @@ func hostCall(ctx context.Context, binding, namespace, operation string, payload
 			name := string(payload)
 			name = strings.Title(name)
 			return []byte(name), nil
+		}
+	case "testing":
+		switch operation {
+		case "echo":
+			return []byte(fmt.Sprintf("echo: %s", payload)), nil // echo
 		}
 	}
 	return []byte("default"), nil
