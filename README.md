@@ -1,4 +1,4 @@
-# waPC Host for Go
+# waPC Host for Go [![Gitter](https://badges.gitter.im/wapc/community.svg)](https://gitter.im/wapc/community)
 
 This is the Golang implementation of the **waPC** standard for WebAssembly host runtimes. It allows any WebAssembly module to be loaded as a guest and receive requests for invocation as well as to make its own function requests of the host.
 
