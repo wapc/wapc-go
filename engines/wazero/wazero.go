@@ -22,7 +22,7 @@ const functionInit = "wapc_init"
 const functionGuestCall = "__guest_call"
 
 type (
-	runtime struct{}
+	engine struct{}
 
 	// Module represents a compiled waPC module.
 	Module struct {
@@ -71,17 +71,17 @@ type (
 	}
 )
 
-// Ensure the runtime conforms to the waPC interface.
+// Ensure the engine conforms to the waPC interface.
 var _ = (wapc.Module)((*Module)(nil))
 var _ = (wapc.Instance)((*Instance)(nil))
 
-var runtimeInstance = runtime{}
+var engineInstance = engine{}
 
 func Engine() wapc.Engine {
-	return &runtimeInstance
+	return &engineInstance
 }
 
-func (e *runtime) Name() string {
+func (e *engine) Name() string {
 	return "wazero"
 }
 
@@ -101,7 +101,7 @@ func (s *stdout) Write(p []byte) (int, error) {
 }
 
 // New compiles a `Module` from `code`.
-func (e *runtime) New(code []byte, hostCallHandler wapc.HostCallHandler) (mod wapc.Module, err error) {
+func (e *engine) New(code []byte, hostCallHandler wapc.HostCallHandler) (mod wapc.Module, err error) {
 	r := wazero.NewRuntime()
 	m := &Module{runtime: r, wapcHostCallHandler: hostCallHandler}
 	// redirect Stdout to the logger
@@ -403,7 +403,7 @@ func (i *Instance) Close() {
 func (m *Module) Close() {
 	m.closed = true
 
-	// TODO m.runtime.Close() https://github.com/tetratelabs/wazero/issues/382
+	// TODO m.engine.Close() https://github.com/tetratelabs/wazero/issues/382
 	if wapc := m.wapc; wapc != nil {
 		_ = wapc.Close()
 		m.wapc = nil
