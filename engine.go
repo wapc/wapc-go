@@ -14,16 +14,32 @@ type (
 		New(code []byte, hostCallHandler HostCallHandler) (Module, error)
 	}
 
+	// Module is a WebAssembly Module.
 	Module interface {
+		// SetLogger sets the waPC logger for `__console_log` function calls.
 		SetLogger(logger Logger)
+
+		// SetWriter sets the writer for WASI `fd_write` calls to stdout (file descriptor 1).
 		SetWriter(writer Logger)
+
+		// Instantiate creates a single instance of the module with its own memory.
 		Instantiate() (Instance, error)
+
+		// Close releases resources from this module, ignoring any errors.
+		// Note: This should be called before after calling Instance.Close on any instances of this module.
 		Close()
 	}
 
+	// Instance is an instantiated Module
 	Instance interface {
+		// MemorySize is the size in bytes of the memory available to this Instance.
 		MemorySize() uint32
+
+		// Invoke calls `operation` with `payload` on the module and returns a byte slice payload.
 		Invoke(ctx context.Context, operation string, payload []byte) ([]byte, error)
+
+		// Close releases resources from this instance, ignoring any errors.
+		// Note: This should be called before calling Module.Close.
 		Close()
 	}
 )
