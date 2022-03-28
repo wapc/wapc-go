@@ -145,7 +145,11 @@ func TestModule(t *testing.T) {
 			defer i.Close()
 
 			t.Run("Check MemorySize", func(t *testing.T) {
-				_ = i.MemorySize()
+				// Verify implementations didn't mistake size in bytes for page count.
+				expectedMemorySize := uint32(65536) // 1 page
+				if i.MemorySize() != expectedMemorySize {
+					t.Errorf("Unexpected memory size, got %d, expected %d", i.MemorySize(), expectedMemorySize)
+				}
 			})
 
 			t.Run("Call Function", func(t *testing.T) {

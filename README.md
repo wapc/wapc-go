@@ -109,9 +109,20 @@ Alternatively you can use a `Pool` to manage a pool of instances.
 	}
 ```
 
-There are currently some differences in this library compared to the Rust implementation:
+While the above example uses Wasmer, wapc-go is decoupled (via `wapc.Engine`) and can be used with different runtimes.
 
-* Uses [Wasmer](https://github.com/wasmerio/wasmer) and its [Go wrapper](https://github.com/wasmerio/go-ext-wasm) for hosting WebAssembly.  We are looking into the new [Wasmtime](https://github.com/bytecodealliance/wasmtime) [Go wrapper](https://github.com/bytecodealliance/wasmtime-go).
-* No support WASI... yet.
-* Separate compilation (`New`) and instantiation (`Instantiate`) steps.  This is to incur the cost of compilation once in a multi-instance scenario.
+## Engines
+
+Here are the supported `wapc.Engine` implementations, in alphabetical order:
+
+| Name        | Usage             | Package |
+|:-----------:|:-----------------:|:-------:|
+| wasmer-go   |`wasmer.Engine()`  |[github.com/wasmerio/wasmer-go](https://pkg.go.dev/github.com/wasmerio/wasmer-go)|
+| wasmtime-go |`wasmtime.Engine()`|[github.com/bytecodealliance/wasmtime-go](https://pkg.go.dev/github.com/bytecodealliance/wasmtime-go)|
+| wazero      |`wazero.Engine()`  |[github.com/tetratelabs/wazero](https://pkg.go.dev/github.com/tetratelabs/wazero)|
+
+### Differences with [wapc-rs](https://github.com/wapc/wapc-rs) (Rust)
+
+Besides engine choices, there differences between this library and the Rust implementation:
+* Separate compilation (`New`) and instantiation (`Instantiate`) steps. This is to incur the cost of compilation once in a multi-instance scenario.
 * `Pool` for creating a pool of instances for a given Module.
