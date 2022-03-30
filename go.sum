@@ -10,8 +10,8 @@ github.com/pmezard/go-difflib v1.0.0/go.mod h1:iKH77koFhYxTK1pcRnkKkqfTogsbg7gZN
 github.com/stretchr/objx v0.1.0/go.mod h1:HFkY916IF+rwdDfMAkV7OtwuqBVzrE8GR6GFx+wExME=
 github.com/stretchr/testify v1.7.0 h1:nwc3DEeHmmLAfoZucVR881uASk0Mfjw8xYJ99tb5CcY=
 github.com/stretchr/testify v1.7.0/go.mod h1:6Fq8oRcR53rry900zMqJjRRixrwX3KX962/h/Wwjteg=
-github.com/tetratelabs/wazero v0.0.0-20220324233430-a1dc1f56a04c h1:jSJwPbAH+hSbMw5SBrq7uT/5GCubSku0L4UX7o0o6II=
-github.com/tetratelabs/wazero v0.0.0-20220324233430-a1dc1f56a04c/go.mod h1:jF+njZWLD70K/xB02hWVz5aQ2m+RCfFjIUJi44t9zOo=
+github.com/tetratelabs/wazero v0.0.0-20220401224236-2664b1eb62a2 h1:T6qVU9nmdy2pQ82ml5iiv0cGNLCzAQ2VNG+U3bQEniQ=
+github.com/tetratelabs/wazero v0.0.0-20220401224236-2664b1eb62a2/go.mod h1:jF+njZWLD70K/xB02hWVz5aQ2m+RCfFjIUJi44t9zOo=
 github.com/tinylib/msgp v1.1.5/go.mod h1:eQsjooMTnV42mHu917E26IogZ2930nFyBQdofk10Udg=
 github.com/ttacon/chalk v0.0.0-20160626202418-22c06c80ed31/go.mod h1:onvgF043R+lC5RZ8IT9rBXDaEDnpnw/Cl+HFiw+v/7Q=
 github.com/twitchyliquid64/golang-asm v0.15.1 h1:SU5vSMR7hnwNxj24w34ZyCi/FmDZTkS4MhqMhdFk5YI=
