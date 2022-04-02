@@ -4,12 +4,12 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"github.com/tetratelabs/wazero/wasi"
 	"io"
 	"sync/atomic"
 
 	"github.com/tetratelabs/wazero"
 	"github.com/tetratelabs/wazero/api"
+	"github.com/tetratelabs/wazero/wasi"
 
 	"github.com/wapc/wapc-go"
 )
@@ -110,7 +110,8 @@ func (s *stdout) Write(p []byte) (int, error) {
 
 // New compiles a `Module` from `code`.
 func (e *engine) New(code []byte, hostCallHandler wapc.HostCallHandler) (mod wapc.Module, err error) {
-	r := wazero.NewRuntime()
+	rc := wazero.NewRuntimeConfig().WithFeatureSignExtensionOps(true)
+	r := wazero.NewRuntimeWithConfig(rc)
 	m := &Module{runtime: r, wapcHostCallHandler: hostCallHandler}
 	m.config = wazero.NewModuleConfig().
 		WithStartFunctions(functionStart, functionInit). // Call any WASI or waPC start functions on instantiate.
