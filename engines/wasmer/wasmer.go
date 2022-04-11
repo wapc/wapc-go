@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"time"
+	"unsafe"
 
 	"github.com/wasmerio/wasmer-go/wasmer"
 
@@ -95,11 +96,7 @@ func (e *engine) Name() string {
 	return "wasmer"
 }
 
-// New compiles a `Module` from `code`.
-func (e *engine) New(code []byte, hostCallHandler wapc.HostCallHandler) (wapc.Module, error) {
-	engine := wasmer.NewEngine()
-	store := wasmer.NewStore(engine)
-
+func (e *engine) doNew(code []byte, hostCallHandler wapc.HostCallHandler, engine *wasmer.Engine, store *wasmer.Store) (wapc.Module, error) {
 	module, err := wasmer.NewModule(store, code)
 	if err != nil {
 		return nil, err
@@ -111,6 +108,21 @@ func (e *engine) New(code []byte, hostCallHandler wapc.HostCallHandler) (wapc.Mo
 		module:          module,
 		hostCallHandler: hostCallHandler,
 	}, nil
+}
+
+// New compiles a `Module` from `code`.
+func (e *engine) NewWithMetering(code []byte, hostCallHandler wapc.HostCallHandler, maxInstructions uint64, pfn unsafe.Pointer) (wapc.Module, error) {
+	config := wasmer.NewConfig().PushMeteringMiddlewarePtr(maxInstructions, pfn)
+	engine := wasmer.NewEngineWithConfig(config)
+	store := wasmer.NewStore(engine)
+	return e.doNew(code, hostCallHandler, engine, store)
+}
+
+// New compiles a `Module` from `code`.
+func (e *engine) New(code []byte, hostCallHandler wapc.HostCallHandler) (wapc.Module, error) {
+	engine := wasmer.NewEngine()
+	store := wasmer.NewStore(engine)
+	return e.doNew(code, hostCallHandler, engine, store)
 }
 
 // SetLogger sets the waPC logger for __console_log calls.
