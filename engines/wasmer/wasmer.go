@@ -96,7 +96,7 @@ func (e *engine) Name() string {
 }
 
 // New compiles a `Module` from `code`.
-func (e *engine) New(code []byte, hostCallHandler wapc.HostCallHandler) (wapc.Module, error) {
+func (e *engine) New(_ context.Context, code []byte, hostCallHandler wapc.HostCallHandler) (wapc.Module, error) {
 	engine := wasmer.NewEngine()
 	store := wasmer.NewStore(engine)
 
@@ -124,7 +124,7 @@ func (m *Module) SetWriter(writer wapc.Logger) {
 }
 
 // Instantiate creates a single instance of the module with its own memory.
-func (m *Module) Instantiate() (wapc.Instance, error) {
+func (m *Module) Instantiate(ctx context.Context) (wapc.Instance, error) {
 	instance := Instance{
 		m: m,
 	}
@@ -157,7 +157,7 @@ func (m *Module) Instantiate() (wapc.Instance, error) {
 	for _, initFunction := range initFunctions {
 		if initFn, err := inst.Exports.GetFunction(initFunction); err == nil {
 			context := invokeContext{
-				ctx: context.Background(),
+				ctx: ctx,
 			}
 			instance.context = &context
 

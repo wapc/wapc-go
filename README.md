@@ -12,7 +12,6 @@ package main
 import (
 	"context"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"strings"
 
@@ -27,14 +26,14 @@ func main() {
 	}
 	name := os.Args[1]
 	ctx := context.Background()
-	code, err := ioutil.ReadFile("hello/hello.wasm")
+	code, err := os.ReadFile("hello/hello.wasm")
 	if err != nil {
 		panic(err)
 	}
 
 	engine := wasmer.Engine()
 
-	module, err := engine.New(code, hostCall)
+	module, err := engine.New(ctx, code, hostCall)
 	if err != nil {
 		panic(err)
 	}
@@ -42,7 +41,7 @@ func main() {
 	module.SetWriter(wapc.Print)
 	defer module.Close()
 
-	instance, err := module.Instantiate()
+	instance, err := module.Instantiate(ctx)
 	if err != nil {
 		panic(err)
 	}
@@ -83,7 +82,7 @@ Hello, WaPC!
 Alternatively you can use a `Pool` to manage a pool of instances.
 
 ```go
-	pool, err := wapc.NewPool(module, 10)
+	pool, err := wapc.NewPool(ctx, module, 10)
 	if err != nil {
 		panic(err)
 	}

@@ -2,7 +2,7 @@ package wapc_test
 
 import (
 	"context"
-	"io/ioutil"
+	"os"
 	"testing"
 	"time"
 
@@ -11,6 +11,8 @@ import (
 	"github.com/wapc/wapc-go/engines/wasmtime"
 	"github.com/wapc/wapc-go/engines/wazero"
 )
+
+var ctx = context.Background()
 
 var engines = []wapc.Engine{
 	wasmer.Engine(),
@@ -30,7 +32,7 @@ func TestGuests(t *testing.T) {
 			for l, p := range lang {
 				t.Run("Module testing with "+l+" Guest", func(t *testing.T) {
 					// Read .wasm file
-					b, err := ioutil.ReadFile("testdata/" + p)
+					b, err := os.ReadFile("testdata/" + p)
 					if err != nil {
 						t.Errorf("Unable to open test file - %s", err)
 					}
@@ -40,7 +42,7 @@ func TestGuests(t *testing.T) {
 					payload := []byte("Testing")
 
 					// Create new module with a callback function
-					m, err := engine.New(b, func(context.Context, string, string, string, []byte) ([]byte, error) {
+					m, err := engine.New(ctx, b, func(context.Context, string, string, string, []byte) ([]byte, error) {
 						callbackCh <- struct{}{}
 						return []byte(""), nil
 					})
@@ -54,7 +56,7 @@ func TestGuests(t *testing.T) {
 					m.SetWriter(wapc.Print)
 
 					// Instantiate Module
-					i, err := m.Instantiate()
+					i, err := m.Instantiate(ctx)
 					if err != nil {
 						t.Errorf("Error instantiating module - %s", err)
 					}
@@ -62,7 +64,7 @@ func TestGuests(t *testing.T) {
 
 					t.Run("Call Successful Function", func(t *testing.T) {
 						// Call echo function
-						r, err := i.Invoke(context.Background(), "echo", payload)
+						r, err := i.Invoke(ctx, "echo", payload)
 						if err != nil {
 							t.Errorf("Unexpected error when calling wasm module - %s", err)
 						}
@@ -83,14 +85,14 @@ func TestGuests(t *testing.T) {
 
 					t.Run("Call Failing Function", func(t *testing.T) {
 						// Call nope function
-						_, err := i.Invoke(context.Background(), "nope", payload)
+						_, err := i.Invoke(ctx, "nope", payload)
 						if err == nil {
 							t.Errorf("Expected error when calling failing function, got nil")
 						}
 					})
 
 					t.Run("Call Unregistered Function", func(t *testing.T) {
-						_, err := i.Invoke(context.Background(), "404", payload)
+						_, err := i.Invoke(ctx, "404", payload)
 						if err == nil {
 							t.Errorf("Expected error when calling unregistered function, got nil")
 						}
@@ -106,7 +108,7 @@ func TestModuleBadBytes(t *testing.T) {
 	for _, engine := range engines {
 		t.Run(engine.Name(), func(t *testing.T) {
 			b := []byte("Do not do this at home kids")
-			_, err := engine.New(b, wapc.NoOpHostCallHandler)
+			_, err := engine.New(ctx, b, wapc.NoOpHostCallHandler)
 			if err == nil {
 				t.Errorf("Expected error when creating module with invalid wasm, got nil")
 			}
@@ -118,7 +120,7 @@ func TestModule(t *testing.T) {
 	for _, engine := range engines {
 		t.Run(engine.Name(), func(t *testing.T) {
 			// Read .wasm file
-			b, err := ioutil.ReadFile("testdata/as/hello.wasm")
+			b, err := os.ReadFile("testdata/as/hello.wasm")
 			if err != nil {
 				t.Errorf("Unable to open test file - %s", err)
 			}
@@ -127,7 +129,7 @@ func TestModule(t *testing.T) {
 			payload := []byte("Testing")
 
 			// Create new module with a NoOpCallback function
-			m, err := engine.New(b, wapc.NoOpHostCallHandler)
+			m, err := engine.New(ctx, b, wapc.NoOpHostCallHandler)
 			if err != nil {
 				t.Errorf("Error creating module - %s", err)
 			}
@@ -138,7 +140,7 @@ func TestModule(t *testing.T) {
 			m.SetWriter(wapc.Print)
 
 			// Instantiate Module
-			i, err := m.Instantiate()
+			i, err := m.Instantiate(ctx)
 			if err != nil {
 				t.Errorf("Error instantiating module - %s", err)
 			}
@@ -154,7 +156,7 @@ func TestModule(t *testing.T) {
 
 			t.Run("Call Function", func(t *testing.T) {
 				// Call echo function
-				r, err := i.Invoke(context.Background(), "echo", payload)
+				r, err := i.Invoke(ctx, "echo", payload)
 				if err != nil {
 					t.Errorf("Unexpected error when calling wasm module - %s", err)
 				}
@@ -169,7 +171,7 @@ func TestModule(t *testing.T) {
 
 			t.Run("Call Function with Closed Instance", func(t *testing.T) {
 				// Call echo function
-				_, err := i.Invoke(context.Background(), "echo", payload)
+				_, err := i.Invoke(ctx, "echo", payload)
 				if err == nil {
 					t.Errorf("Expected error when calling wasm module with closed instance")
 				}

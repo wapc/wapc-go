@@ -4,7 +4,6 @@ import (
 	"context"
 	"flag"
 	"fmt"
-	"io/ioutil"
 	"log"
 	"os"
 	"strings"
@@ -50,14 +49,14 @@ func main() {
 	settings := cli()
 
 	ctx := context.Background()
-	code, err := ioutil.ReadFile(settings.ModulePath)
+	code, err := os.ReadFile(settings.ModulePath)
 	if err != nil {
 		panic(err)
 	}
 
 	engine := wasmtime.Engine()
 
-	module, err := engine.New(code, hostCall)
+	module, err := engine.New(ctx, code, hostCall)
 	if err != nil {
 		panic(err)
 	}
@@ -65,7 +64,7 @@ func main() {
 	module.SetWriter(wapc.Print)
 	defer module.Close()
 
-	instance, err := module.Instantiate()
+	instance, err := module.Instantiate(ctx)
 	if err != nil {
 		panic(err)
 	}
@@ -79,7 +78,7 @@ func main() {
 	fmt.Println(string(result))
 }
 
-func hostCall(ctx context.Context, binding, namespace, operation string, payload []byte) ([]byte, error) {
+func hostCall(_ context.Context, binding, namespace, operation string, payload []byte) ([]byte, error) {
 	log.Println("host callback")
 	log.Printf("binding: %s\n", binding)
 	log.Printf("namespace: %s\n", namespace)

@@ -11,7 +11,7 @@ type (
 
 	Engine interface {
 		Name() string
-		New(code []byte, hostCallHandler HostCallHandler) (Module, error)
+		New(ctx context.Context, code []byte, hostCallHandler HostCallHandler) (Module, error)
 	}
 
 	// Module is a WebAssembly Module.
@@ -23,7 +23,7 @@ type (
 		SetWriter(writer Logger)
 
 		// Instantiate creates a single instance of the module with its own memory.
-		Instantiate() (Instance, error)
+		Instantiate(ctx context.Context) (Instance, error)
 
 		// Close releases resources from this module, ignoring any errors.
 		// Note: This should be called before after calling Instance.Close on any instances of this module.
