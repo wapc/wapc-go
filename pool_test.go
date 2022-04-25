@@ -38,13 +38,13 @@ func TestGuestsWithPool(t *testing.T) {
 					if err != nil {
 						t.Errorf("Error creating module - %s", err)
 					}
-					defer m.Close()
+					defer m.Close(ctx)
 
 					p, err := wapc.NewPool(ctx, m, 10)
 					if err != nil {
 						t.Errorf("Error creating module pool - %s", err)
 					}
-					defer p.Close()
+					defer p.Close(ctx)
 
 					i, err := p.Get(10 * time.Second)
 					if err != nil {

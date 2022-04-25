@@ -62,13 +62,13 @@ func main() {
 	}
 	module.SetLogger(wapc.Println)
 	module.SetWriter(wapc.Print)
-	defer module.Close()
+	defer module.Close(ctx)
 
 	instance, err := module.Instantiate(ctx)
 	if err != nil {
 		panic(err)
 	}
-	defer instance.Close()
+	defer instance.Close(ctx)
 
 	result, err := instance.Invoke(ctx, settings.WaPCFunction, []byte(settings.Message))
 	if err != nil {

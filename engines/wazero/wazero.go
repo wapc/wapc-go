@@ -119,22 +119,22 @@ func (e *engine) New(ctx context.Context, code []byte, hostCallHandler wapc.Host
 	mod = m
 
 	if m.wasi, err = wasi.InstantiateSnapshotPreview1(ctx, r); err != nil {
-		mod.Close()
+		mod.Close(ctx)
 		return
 	}
 
 	if m.assemblyScript, err = instantiateAssemblyScript(ctx, r); err != nil {
-		mod.Close()
+		mod.Close(ctx)
 		return
 	}
 
 	if m.wapc, err = instantiateWapcHost(ctx, r, m.wapcHostCallHandler, m); err != nil {
-		mod.Close()
+		mod.Close(ctx)
 		return
 	}
 
 	if m.code, err = r.CompileModule(ctx, code); err != nil {
-		mod.Close()
+		mod.Close(ctx)
 		return
 	}
 	return
@@ -169,7 +169,7 @@ func instantiateAssemblyScript(ctx context.Context, r wazero.Runtime) (api.Modul
 // envAbort is called on unrecoverable errors. This is typically present in Wasm compiled from AssemblyScript, if
 // assertions are enabled or errors are thrown.
 //
-// The implementation only performs the `CloseWithExitCode(255)` part of the default implementation, as logging is both
+// The implementation only closes the module with exit code 255 part of the default implementation, as logging is both
 // complicated (because lengths aren't provided in the signature), and should go to STDERR, which isn't defined yet in
 // waPC. Moreover, all other engines stub this function (no-op, not even exit!).
 //
@@ -177,8 +177,8 @@ func instantiateAssemblyScript(ctx context.Context, r wazero.Runtime) (api.Modul
 //	(import "env" "abort" (func $~lib/builtins/abort (param i32 i32 i32 i32)))
 //
 // See https://github.com/AssemblyScript/assemblyscript/blob/fa14b3b03bd4607efa52aaff3132bea0c03a7989/std/assembly/wasi/index.ts#L18
-func (a *assemblyScript) envAbort(m api.Module, messageOffset, fileNameOffset, line, col uint32) {
-	_ = m.CloseWithExitCode(255)
+func (a *assemblyScript) envAbort(ctx context.Context, m api.Module, messageOffset, fileNameOffset, line, col uint32) {
+	_ = m.CloseWithExitCode(ctx, 255)
 }
 
 // wapcHost implements all required waPC host function exports.
@@ -221,10 +221,10 @@ func (w *wapcHost) hostCall(ctx context.Context, m api.Module, bindPtr, bindLen,
 	}
 
 	mem := m.Memory()
-	binding := requireReadString(mem, "binding", bindPtr, bindLen)
-	namespace := requireReadString(mem, "namespace", nsPtr, nsLen)
-	operation := requireReadString(mem, "operation", cmdPtr, cmdLen)
-	payload := requireRead(mem, "payload", payloadPtr, payloadLen)
+	binding := requireReadString(ctx, mem, "binding", bindPtr, bindLen)
+	namespace := requireReadString(ctx, mem, "namespace", nsPtr, nsLen)
+	operation := requireReadString(ctx, mem, "operation", cmdPtr, cmdLen)
+	payload := requireRead(ctx, mem, "payload", payloadPtr, payloadLen)
 
 	if ic.hostResp, ic.hostErr = w.callHandler(ctx, binding, namespace, operation, payload); ic.hostErr != nil {
 		return 0 // false: there was an error (assumed to be logged already?)
@@ -235,9 +235,9 @@ func (w *wapcHost) hostCall(ctx context.Context, m api.Module, bindPtr, bindLen,
 
 // consoleLog is the WebAssembly function export "__console_log", which logs the message stored by the guest at the
 // given offset (ptr) and length (len) in linear memory (wasm.Memory).
-func (w *wapcHost) consoleLog(m api.Module, ptr, len uint32) {
+func (w *wapcHost) consoleLog(ctx context.Context, m api.Module, ptr, len uint32) {
 	if log := w.m.wapcHostConsoleLogger; log != nil {
-		msg := requireReadString(m.Memory(), "msg", ptr, len)
+		msg := requireReadString(ctx, m.Memory(), "msg", ptr, len)
 		log(msg)
 	}
 }
@@ -252,10 +252,10 @@ func (w *wapcHost) guestRequest(ctx context.Context, m api.Module, opPtr, ptr ui
 
 	mem := m.Memory()
 	if operation := ic.operation; operation != "" {
-		mem.Write(opPtr, []byte(operation))
+		mem.Write(ctx, opPtr, []byte(operation))
 	}
 	if guestReq := ic.guestReq; guestReq != nil {
-		mem.Write(ptr, guestReq)
+		mem.Write(ctx, ptr, guestReq)
 	}
 }
 
@@ -265,7 +265,7 @@ func (w *wapcHost) hostResponse(ctx context.Context, m api.Module, ptr uint32) {
 	if ic := fromInvokeContext(ctx); ic == nil {
 		return // no invoke context
 	} else if hostResp := ic.hostResp; hostResp != nil {
-		m.Memory().Write(ptr, hostResp)
+		m.Memory().Write(ctx, ptr, hostResp)
 	}
 }
 
@@ -287,7 +287,7 @@ func (w *wapcHost) guestResponse(ctx context.Context, m api.Module, ptr, len uin
 	if ic := fromInvokeContext(ctx); ic == nil {
 		return // no invoke context
 	} else {
-		ic.guestResp = requireRead(m.Memory(), "guestResp", ptr, len)
+		ic.guestResp = requireRead(ctx, m.Memory(), "guestResp", ptr, len)
 	}
 }
 
@@ -297,7 +297,7 @@ func (w *wapcHost) guestError(ctx context.Context, m api.Module, ptr, len uint32
 	if ic := fromInvokeContext(ctx); ic == nil {
 		return // no invoke context
 	} else {
-		ic.guestErr = requireReadString(m.Memory(), "guestErr", ptr, len)
+		ic.guestErr = requireReadString(ctx, m.Memory(), "guestErr", ptr, len)
 	}
 }
 
@@ -307,7 +307,7 @@ func (w *wapcHost) hostError(ctx context.Context, m api.Module, ptr uint32) {
 	if ic := fromInvokeContext(ctx); ic == nil {
 		return // no invoke context
 	} else if hostErr := ic.hostErr; hostErr != nil {
-		m.Memory().Write(ptr, []byte(hostErr.Error()))
+		m.Memory().Write(ctx, ptr, []byte(hostErr.Error()))
 	}
 }
 
@@ -340,7 +340,7 @@ func (m *Module) Instantiate(ctx context.Context) (wapc.Instance, error) {
 	instance := Instance{name: moduleName, m: module}
 
 	if instance.guestCall = module.ExportedFunction(functionGuestCall); instance.guestCall == nil {
-		_ = module.Close()
+		_ = module.Close(ctx)
 		return nil, fmt.Errorf("module %s didn't export function %s", moduleName, functionGuestCall)
 	}
 
@@ -348,8 +348,8 @@ func (m *Module) Instantiate(ctx context.Context) (wapc.Instance, error) {
 }
 
 // MemorySize implements the same method as documented on wapc.Instance.
-func (i *Instance) MemorySize() uint32 {
-	return i.m.Memory().Size()
+func (i *Instance) MemorySize(ctx context.Context) uint32 {
+	return i.m.Memory().Size(ctx)
 }
 
 type invokeContextKey struct{}
@@ -396,32 +396,32 @@ func (i *Instance) Invoke(ctx context.Context, operation string, payload []byte)
 }
 
 // Close implements the same method as documented on wapc.Instance.
-func (i *Instance) Close() {
+func (i *Instance) Close(ctx context.Context) {
 	if !atomic.CompareAndSwapUint32(&i.closed, 0, 1) {
 		return
 	}
-	_ = i.m.Close()
+	_ = i.m.Close(ctx)
 }
 
 // Close implements the same method as documented on wapc.Module.
-func (m *Module) Close() {
+func (m *Module) Close(ctx context.Context) {
 	if !atomic.CompareAndSwapUint32(&m.closed, 0, 1) {
 		return
 	}
 
 	// TODO m.engine.Close() https://github.com/tetratelabs/wazero/issues/382
 	if wapc := m.wapc; wapc != nil {
-		_ = wapc.Close()
+		_ = wapc.Close(ctx)
 		m.wapc = nil
 	}
 
 	if env := m.assemblyScript; env != nil {
-		_ = env.Close()
+		_ = env.Close(ctx)
 		m.assemblyScript = nil
 	}
 
 	if wasi := m.wasi; wasi != nil {
-		_ = wasi.Close()
+		_ = wasi.Close(ctx)
 		m.wasi = nil
 	}
 
@@ -430,13 +430,13 @@ func (m *Module) Close() {
 }
 
 // requireReadString is a convenience function that casts requireRead
-func requireReadString(mem api.Memory, fieldName string, offset, byteCount uint32) string {
-	return string(requireRead(mem, fieldName, offset, byteCount))
+func requireReadString(ctx context.Context, mem api.Memory, fieldName string, offset, byteCount uint32) string {
+	return string(requireRead(ctx, mem, fieldName, offset, byteCount))
 }
 
 // requireRead is like api.Memory except that it panics if the offset and byteCount are out of range.
-func requireRead(mem api.Memory, fieldName string, offset, byteCount uint32) []byte {
-	buf, ok := mem.Read(offset, byteCount)
+func requireRead(ctx context.Context, mem api.Memory, fieldName string, offset, byteCount uint32) []byte {
+	buf, ok := mem.Read(ctx, offset, byteCount)
 	if !ok {
 		panic(fmt.Errorf("out of range reading %s", fieldName))
 	}
