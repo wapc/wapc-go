@@ -2,7 +2,7 @@ package wapc_test
 
 import (
 	"context"
-	"io/ioutil"
+	"os"
 	"testing"
 	"time"
 
@@ -21,7 +21,7 @@ func TestGuestsWithPool(t *testing.T) {
 			for l, p := range lang {
 				t.Run("Module testing with "+l+" Guest", func(t *testing.T) {
 					// Read .wasm file
-					b, err := ioutil.ReadFile("testdata/" + p)
+					b, err := os.ReadFile("testdata/" + p)
 					if err != nil {
 						t.Errorf("Unable to open test file - %s", err)
 					}
@@ -31,29 +31,29 @@ func TestGuestsWithPool(t *testing.T) {
 					payload := []byte("Testing")
 
 					// Create new module with a callback function
-					m, err := engine.New(b, func(context.Context, string, string, string, []byte) ([]byte, error) {
+					m, err := engine.New(ctx, b, func(context.Context, string, string, string, []byte) ([]byte, error) {
 						callbackCh <- struct{}{}
 						return []byte(""), nil
 					})
 					if err != nil {
 						t.Errorf("Error creating module - %s", err)
 					}
-					defer m.Close()
+					defer m.Close(ctx)
 
-					p, err := wapc.NewPool(m, 10)
+					p, err := wapc.NewPool(ctx, m, 10)
 					if err != nil {
 						t.Errorf("Error creating module pool - %s", err)
 					}
-					defer p.Close()
+					defer p.Close(ctx)
 
-					i, err := p.Get(time.Duration(10 * time.Second))
+					i, err := p.Get(10 * time.Second)
 					if err != nil {
 						t.Errorf("Error unable to fetch instance from pool - %s", err)
 					}
 
 					t.Run("Call Successful Function", func(t *testing.T) {
 						// Call echo function
-						r, err := i.Invoke(context.Background(), "echo", payload)
+						r, err := i.Invoke(ctx, "echo", payload)
 						if err != nil {
 							t.Errorf("Unexpected error when calling wasm module - %s", err)
 						}
@@ -74,14 +74,14 @@ func TestGuestsWithPool(t *testing.T) {
 
 					t.Run("Call Failing Function", func(t *testing.T) {
 						// Call nope function
-						_, err := i.Invoke(context.Background(), "nope", payload)
+						_, err := i.Invoke(ctx, "nope", payload)
 						if err == nil {
 							t.Errorf("Expected error when calling failing function, got nil")
 						}
 					})
 
 					t.Run("Call Unregistered Function", func(t *testing.T) {
-						_, err := i.Invoke(context.Background(), "404", payload)
+						_, err := i.Invoke(ctx, "404", payload)
 						if err == nil {
 							t.Errorf("Expected error when calling unregistered function, got nil")
 						}

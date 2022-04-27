@@ -1,6 +1,7 @@
 package wapc
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"time"
@@ -19,11 +20,11 @@ type (
 
 // NewPool takes in compiled WASM module and a size and returns a pool
 // containing `size` instances of that module.
-func NewPool(module Module, size uint64) (*Pool, error) {
+func NewPool(ctx context.Context, module Module, size uint64) (*Pool, error) {
 	rb := queue.NewRingBuffer(size)
 	instances := make([]Instance, size)
 	for i := uint64(0); i < size; i++ {
-		inst, err := module.Instantiate()
+		inst, err := module.Instantiate(ctx)
 		if err != nil {
 			return nil, err
 		}
@@ -78,10 +79,10 @@ func (p *Pool) Return(inst Instance) error {
 }
 
 // Close closes down all the instances contained by the pool.
-func (p *Pool) Close() {
+func (p *Pool) Close(ctx context.Context) {
 	p.rb.Dispose()
 
 	for _, inst := range p.instances {
-		inst.Close()
+		inst.Close(ctx)
 	}
 }
