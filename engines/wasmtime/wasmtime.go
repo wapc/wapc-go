@@ -400,7 +400,7 @@ func (i *Instance) wapcRuntime() map[string]*wasmtime.Func {
 }
 
 // MemorySize returns the memory length of the underlying instance.
-func (i *Instance) MemorySize() uint32 {
+func (i *Instance) MemorySize(context.Context) uint32 {
 	return uint32(i.mem.DataSize(i.m.store))
 }
 
@@ -437,7 +437,7 @@ func (i *Instance) Invoke(ctx context.Context, operation string, payload []byte)
 }
 
 // Close closes the single instance.  This should be called before calling `Close` on the Module itself.
-func (i *Instance) Close() {
+func (i *Instance) Close(context.Context) {
 	// Explicitly release references on wasmtime types so they can be GC'ed.
 	i.inst = nil
 	i.mem = nil
@@ -455,7 +455,7 @@ func (i *Instance) Close() {
 }
 
 // Close closes the module.  This should be called after calling `Close` on any instances that were created.
-func (m *Module) Close() {
+func (m *Module) Close(context.Context) {
 	// Explicitly release references on wasmtime types so they can be GC'ed.
 	m.module = nil
 	m.store = nil

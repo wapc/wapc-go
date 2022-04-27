@@ -49,7 +49,7 @@ func TestGuests(t *testing.T) {
 					if err != nil {
 						t.Errorf("Error creating module - %s", err)
 					}
-					defer m.Close()
+					defer m.Close(ctx)
 
 					// Set loggers and writers
 					m.SetLogger(wapc.Println)
@@ -60,7 +60,7 @@ func TestGuests(t *testing.T) {
 					if err != nil {
 						t.Errorf("Error instantiating module - %s", err)
 					}
-					defer i.Close()
+					defer i.Close(ctx)
 
 					t.Run("Call Successful Function", func(t *testing.T) {
 						// Call echo function
@@ -133,7 +133,7 @@ func TestModule(t *testing.T) {
 			if err != nil {
 				t.Errorf("Error creating module - %s", err)
 			}
-			defer m.Close()
+			defer m.Close(ctx)
 
 			// Set loggers and writers
 			m.SetLogger(wapc.Println)
@@ -144,13 +144,13 @@ func TestModule(t *testing.T) {
 			if err != nil {
 				t.Errorf("Error instantiating module - %s", err)
 			}
-			defer i.Close()
+			defer i.Close(ctx)
 
 			t.Run("Check MemorySize", func(t *testing.T) {
 				// Verify implementations didn't mistake size in bytes for page count.
 				expectedMemorySize := uint32(65536) // 1 page
-				if i.MemorySize() != expectedMemorySize {
-					t.Errorf("Unexpected memory size, got %d, expected %d", i.MemorySize(), expectedMemorySize)
+				if i.MemorySize(ctx) != expectedMemorySize {
+					t.Errorf("Unexpected memory size, got %d, expected %d", i.MemorySize(ctx), expectedMemorySize)
 				}
 			})
 
@@ -167,7 +167,7 @@ func TestModule(t *testing.T) {
 				}
 			})
 
-			i.Close()
+			i.Close(ctx)
 
 			t.Run("Call Function with Closed Instance", func(t *testing.T) {
 				// Call echo function

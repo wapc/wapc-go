@@ -79,10 +79,10 @@ func (p *Pool) Return(inst Instance) error {
 }
 
 // Close closes down all the instances contained by the pool.
-func (p *Pool) Close() {
+func (p *Pool) Close(ctx context.Context) {
 	p.rb.Dispose()
 
 	for _, inst := range p.instances {
-		inst.Close()
+		inst.Close(ctx)
 	}
 }
