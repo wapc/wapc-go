@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"sync/atomic"
+	"unsafe"
 
 	"github.com/tetratelabs/wazero"
 	"github.com/tetratelabs/wazero/api"
@@ -106,6 +107,16 @@ func (s *stdout) Write(p []byte) (int, error) {
 	}
 	w(string(p))
 	return len(p), nil
+}
+
+func (e *engine) NewWithMetering(code []byte, hostCallHandler wapc.HostCallHandler, maxInstructions uint64, pfn unsafe.Pointer) (wapc.Module, error) {
+	ctx := context.Background()
+	return e.New(ctx, code, hostCallHandler)
+}
+
+func (e *engine) NewWithDebug(code []byte, hostCallHandler wapc.HostCallHandler) (wapc.Module, error) {
+	ctx := context.Background()
+	return e.New(ctx, code, hostCallHandler)
 }
 
 // New compiles a `Module` from `code`.
@@ -345,6 +356,10 @@ func (m *Module) Instantiate(ctx context.Context) (wapc.Instance, error) {
 	}
 
 	return &instance, nil
+}
+
+func (i *Instance) RemainingPoints(context.Context) uint64 {
+	return 0
 }
 
 // MemorySize implements the same method as documented on wapc.Instance.

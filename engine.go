@@ -1,6 +1,9 @@
 package wapc
 
-import "context"
+import (
+	"context"
+	"unsafe"
+)
 
 type (
 	// Logger is the function to call from consoleLog inside a waPC module.
@@ -12,6 +15,8 @@ type (
 	Engine interface {
 		Name() string
 		New(ctx context.Context, code []byte, hostCallHandler HostCallHandler) (Module, error)
+		NewWithMetering(code []byte, hostCallHandler HostCallHandler, maxInstructions uint64, pfn unsafe.Pointer) (Module, error)
+		NewWithDebug(code []byte, hostCallHandler HostCallHandler) (Module, error)
 	}
 
 	// Module is a WebAssembly Module.
@@ -41,6 +46,8 @@ type (
 		// Close releases resources from this instance, ignoring any errors.
 		// Note: This should be called before calling Module.Close.
 		Close(context.Context)
+
+		RemainingPoints(context.Context) uint64
 	}
 )
 

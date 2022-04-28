@@ -6,10 +6,11 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"unsafe"
 
 	"github.com/bytecodealliance/wasmtime-go"
 
-	"github.com/JanFalkin/wapc-go"
+	wapc "github.com/JanFalkin/wapc-go"
 )
 
 type (
@@ -80,8 +81,7 @@ func (e *engine) Name() string {
 }
 
 // New compiles a `Module` from `code`.
-func (e *engine) New(_ context.Context, code []byte, hostCallHandler wapc.HostCallHandler) (wapc.Module, error) {
-	engine := wasmtime.NewEngine()
+func (e *engine) doNew(engine *wasmtime.Engine, code []byte, hostCallHandler wapc.HostCallHandler) (wapc.Module, error) {
 	store := wasmtime.NewStore(engine)
 
 	wasiConfig := wasmtime.NewWasiConfig()
@@ -98,6 +98,27 @@ func (e *engine) New(_ context.Context, code []byte, hostCallHandler wapc.HostCa
 		module:          module,
 		hostCallHandler: hostCallHandler,
 	}, nil
+}
+
+func (e *engine) NewWithDebug(code []byte, hostCallHandler wapc.HostCallHandler) (wapc.Module, error) {
+	cfg := wasmtime.NewConfig()
+	cfg.SetDebugInfo(true)
+	engine := wasmtime.NewEngineWithConfig(cfg)
+	return e.doNew(engine, code, hostCallHandler)
+}
+
+func (e *engine) NewWithMetering(code []byte, hostCallHandler wapc.HostCallHandler, maxInstructions uint64, pfn unsafe.Pointer) (wapc.Module, error) {
+	return e.New(nil, code, hostCallHandler)
+}
+
+func (i *Instance) RemainingPoints(context.Context) uint64 {
+	return 0
+}
+
+// New compiles a `Module` from `code`.
+func (e *engine) New(ctx context.Context, code []byte, hostCallHandler wapc.HostCallHandler) (wapc.Module, error) {
+	engine := wasmtime.NewEngine()
+	return e.doNew(engine, code, hostCallHandler)
 }
 
 // SetLogger sets the waPC logger for __console_log calls.

@@ -128,6 +128,10 @@ func (e *engine) New(ctx context.Context, code []byte, hostCallHandler wapc.Host
 	return e.doNew(code, hostCallHandler, engine, store)
 }
 
+func (e *engine) NewWithDebug(code []byte, hostCallHandler wapc.HostCallHandler) (wapc.Module, error) {
+	return e.New(nil, code, hostCallHandler)
+}
+
 // SetLogger sets the waPC logger for __console_log calls.
 func (m *Module) SetLogger(logger wapc.Logger) {
 	m.logger = logger
@@ -591,4 +595,8 @@ func (m *Module) Close(context.Context) {
 	m.module = nil
 	m.store = nil
 	m.engine = nil
+}
+
+func (i *Instance) RemainingPoints(context.Context) uint64 {
+	return i.inst.GetRemainingPoints()
 }
