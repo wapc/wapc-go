@@ -1,5 +1,5 @@
-//go:build !wasmtime && wasmer
-// +build !wasmtime,wasmer
+//go:build !wasmtime
+// +build !wasmtime
 
 package wasmer
 
