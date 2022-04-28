@@ -11,7 +11,7 @@ import (
 	"github.com/tetratelabs/wazero/api"
 	"github.com/tetratelabs/wazero/wasi"
 
-	"github.com/wapc/wapc-go"
+	"github.com/JanFalkin/wapc-go"
 )
 
 // functionStart is the name of the nullary function a module exports if it is a WASI Command Module.

@@ -9,7 +9,7 @@ import (
 
 	"github.com/bytecodealliance/wasmtime-go"
 
-	"github.com/wapc/wapc-go"
+	"github.com/JanFalkin/wapc-go"
 )
 
 type (

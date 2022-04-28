@@ -3,8 +3,8 @@ package wapc_test
 import (
 	"testing"
 
-	"github.com/wapc/wapc-go"
-	"github.com/wapc/wapc-go/engines/wazero"
+	"github.com/JanFalkin/wapc-go"
+	"github.com/JanFalkin/wapc-go/engines/wazero"
 )
 
 var wazeroEngine = []wapc.Engine{wazero.Engine()}

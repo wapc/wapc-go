@@ -15,8 +15,8 @@ import (
 	"os"
 	"strings"
 
-	"github.com/wapc/wapc-go"
-	"github.com/wapc/wapc-go/engines/wasmer"
+	"github.com/JanFalkin/wapc-go"
+	"github.com/JanFalkin/wapc-go/engines/wasmer"
 )
 
 func main() {

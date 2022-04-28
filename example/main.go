@@ -8,7 +8,7 @@ import (
 	"os"
 	"strings"
 
-	"github.com/wapc/wapc-go"
+	"github.com/JanFalkin/wapc-go"
 )
 
 type Settings struct {

@@ -13,7 +13,7 @@ import (
 
 	"github.com/wasmerio/wasmer-go/wasmer"
 
-	"github.com/wapc/wapc-go"
+	wapc "github.com/JanFalkin/wapc-go"
 )
 
 type (

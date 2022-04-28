@@ -6,7 +6,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/wapc/wapc-go"
+	"github.com/JanFalkin/wapc-go"
 )
 
 var ctx = context.Background()

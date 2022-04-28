@@ -1,4 +1,4 @@
-module github.com/wapc/wapc-go/testdata/go
+module github.com/JanFalkin/wapc-go/testdata/go
 
 go 1.16
 

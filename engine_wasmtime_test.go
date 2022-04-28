@@ -6,8 +6,8 @@ package wapc_test
 import (
 	"testing"
 
-	"github.com/wapc/wapc-go"
-	"github.com/wapc/wapc-go/engines/wasmtime"
+	"github.com/JanFalkin/wapc-go"
+	"github.com/JanFalkin/wapc-go/engines/wasmtime"
 )
 
 var wasmtimeEngine = []wapc.Engine{wasmtime.Engine()}
