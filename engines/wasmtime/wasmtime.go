@@ -1,3 +1,5 @@
+//go:build wasmtime && !wasmer
+
 package wasmtime
 
 import (

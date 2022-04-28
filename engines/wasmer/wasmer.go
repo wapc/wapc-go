@@ -1,3 +1,6 @@
+//go:build !wasmtime && wasmer
+// +build !wasmtime,wasmer
+
 package wasmer
 
 import (
@@ -119,7 +122,7 @@ func (e *engine) NewWithMetering(code []byte, hostCallHandler wapc.HostCallHandl
 }
 
 // New compiles a `Module` from `code`.
-func (e *engine) New(code []byte, hostCallHandler wapc.HostCallHandler) (wapc.Module, error) {
+func (e *engine) New(ctx context.Context, code []byte, hostCallHandler wapc.HostCallHandler) (wapc.Module, error) {
 	engine := wasmer.NewEngine()
 	store := wasmer.NewStore(engine)
 	return e.doNew(code, hostCallHandler, engine, store)

@@ -7,20 +7,11 @@ import (
 	"time"
 
 	"github.com/wapc/wapc-go"
-	"github.com/wapc/wapc-go/engines/wasmer"
-	"github.com/wapc/wapc-go/engines/wasmtime"
-	"github.com/wapc/wapc-go/engines/wazero"
 )
 
 var ctx = context.Background()
 
-var engines = []wapc.Engine{
-	wasmer.Engine(),
-	wasmtime.Engine(),
-	wazero.Engine(),
-}
-
-func TestGuests(t *testing.T) {
+func testGuests(t *testing.T, engines []wapc.Engine) {
 	lang := map[string]string{
 		"assemblyscript": "as/hello.wasm",
 		"go":             "go/hello.wasm",
@@ -104,7 +95,7 @@ func TestGuests(t *testing.T) {
 	}
 }
 
-func TestModuleBadBytes(t *testing.T) {
+func testModuleBadBytes(t *testing.T, engines []wapc.Engine) {
 	for _, engine := range engines {
 		t.Run(engine.Name(), func(t *testing.T) {
 			b := []byte("Do not do this at home kids")
@@ -116,7 +107,7 @@ func TestModuleBadBytes(t *testing.T) {
 	}
 }
 
-func TestModule(t *testing.T) {
+func testModule(t *testing.T, engines []wapc.Engine) {
 	for _, engine := range engines {
 		t.Run(engine.Name(), func(t *testing.T) {
 			// Read .wasm file

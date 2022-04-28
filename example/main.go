@@ -9,7 +9,6 @@ import (
 	"strings"
 
 	"github.com/wapc/wapc-go"
-	"github.com/wapc/wapc-go/engines/wasmtime"
 )
 
 type Settings struct {
@@ -54,7 +53,7 @@ func main() {
 		panic(err)
 	}
 
-	engine := wasmtime.Engine()
+	engine := getEngine()
 
 	module, err := engine.New(ctx, code, hostCall)
 	if err != nil {

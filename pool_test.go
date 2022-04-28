@@ -9,7 +9,7 @@ import (
 	"github.com/wapc/wapc-go"
 )
 
-func TestGuestsWithPool(t *testing.T) {
+func testGuestsWithPool(t *testing.T, engines []wapc.Engine) {
 	lang := map[string]string{
 		"assemblyscript": "as/hello.wasm",
 		"go":             "go/hello.wasm",
