@@ -47,12 +47,12 @@ type (
 		wapcHostCallHandler wapc.HostCallHandler
 
 		runtime wazero.Runtime
-		code    *wazero.CompiledCode
+		code    wazero.CompiledCode
 
 		instanceCounter uint64
 
 		wasi, assemblyScript, wapc api.Module
-		config                     *wazero.ModuleConfig
+		config                     wazero.ModuleConfig
 
 		// closed is atomically updated to ensure Close is only invoked once.
 		closed uint32
@@ -110,7 +110,7 @@ func (s *stdout) Write(p []byte) (int, error) {
 
 // New compiles a `Module` from `code`.
 func (e *engine) New(ctx context.Context, code []byte, hostCallHandler wapc.HostCallHandler) (mod wapc.Module, err error) {
-	rc := wazero.NewRuntimeConfig().WithFeatureSignExtensionOps(true)
+	rc := wazero.NewRuntimeConfig().WithWasmCore2()
 	r := wazero.NewRuntimeWithConfig(rc)
 	m := &Module{runtime: r, wapcHostCallHandler: hostCallHandler}
 	m.config = wazero.NewModuleConfig().
