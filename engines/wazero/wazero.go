@@ -46,13 +46,13 @@ type (
 		// wapcHostCallHandler is the value of wapcHost.callHandler
 		wapcHostCallHandler wapc.HostCallHandler
 
-		runtime wazero.Runtime
-		code    *wazero.CompiledCode
+		runtime  wazero.Runtime
+		compiled wazero.CompiledModule
 
 		instanceCounter uint64
 
 		wasi, assemblyScript, wapc api.Module
-		config                     *wazero.ModuleConfig
+		config                     wazero.ModuleConfig
 
 		// closed is atomically updated to ensure Close is only invoked once.
 		closed uint32
@@ -109,7 +109,7 @@ func (s *stdout) Write(p []byte) (int, error) {
 }
 
 // New compiles a `Module` from `code`.
-func (e *engine) New(ctx context.Context, code []byte, hostCallHandler wapc.HostCallHandler) (mod wapc.Module, err error) {
+func (e *engine) New(ctx context.Context, source []byte, hostCallHandler wapc.HostCallHandler) (mod wapc.Module, err error) {
 	rc := wazero.NewRuntimeConfig().WithFeatureSignExtensionOps(true)
 	r := wazero.NewRuntimeWithConfig(rc)
 	m := &Module{runtime: r, wapcHostCallHandler: hostCallHandler}
@@ -133,7 +133,7 @@ func (e *engine) New(ctx context.Context, code []byte, hostCallHandler wapc.Host
 		return
 	}
 
-	if m.code, err = r.CompileModule(ctx, code); err != nil {
+	if m.compiled, err = r.CompileModule(ctx, source, wazero.NewCompileConfig()); err != nil {
 		mod.Close(ctx)
 		return
 	}
@@ -332,7 +332,7 @@ func (m *Module) Instantiate(ctx context.Context) (wapc.Instance, error) {
 
 	moduleName := fmt.Sprintf("%d", atomic.AddUint64(&m.instanceCounter, 1))
 
-	module, err := m.runtime.InstantiateModuleWithConfig(ctx, m.code, m.config.WithName(moduleName))
+	module, err := m.runtime.InstantiateModule(ctx, m.compiled, m.config.WithName(moduleName))
 	if err != nil {
 		return nil, err
 	}
@@ -396,37 +396,50 @@ func (i *Instance) Invoke(ctx context.Context, operation string, payload []byte)
 }
 
 // Close implements the same method as documented on wapc.Instance.
-func (i *Instance) Close(ctx context.Context) {
+func (i *Instance) Close(ctx context.Context) error{
 	if !atomic.CompareAndSwapUint32(&i.closed, 0, 1) {
-		return
+		return nil
 	}
-	_ = i.m.Close(ctx)
+	return i.m.Close(ctx)
 }
 
 // Close implements the same method as documented on wapc.Module.
-func (m *Module) Close(ctx context.Context) {
+func (m *Module) Close(ctx context.Context) (err error) {
 	if !atomic.CompareAndSwapUint32(&m.closed, 0, 1) {
 		return
 	}
 
 	// TODO m.engine.Close() https://github.com/tetratelabs/wazero/issues/382
 	if wapc := m.wapc; wapc != nil {
-		_ = wapc.Close(ctx)
+		if e := wapc.Close(ctx); e != nil && err != nil {
+			err = e // first error
+		}
 		m.wapc = nil
 	}
 
 	if env := m.assemblyScript; env != nil {
-		_ = env.Close(ctx)
+		if e := env.Close(ctx); e != nil && err != nil {
+			err = e // first error
+		}
 		m.assemblyScript = nil
 	}
 
 	if wasi := m.wasi; wasi != nil {
-		_ = wasi.Close(ctx)
+		if e := wasi.Close(ctx); e != nil && err != nil {
+			err = e // first error
+		}
 		m.wasi = nil
 	}
 
-	m.code = nil
+	if compiled := m.compiled; compiled != nil {
+		if e := compiled.Close(ctx); e != nil && err != nil {
+			err = e // first error
+		}
+		m.compiled = nil
+	}
+
 	m.runtime = nil
+	return
 }
 
 // requireReadString is a convenience function that casts requireRead

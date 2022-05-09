@@ -5,6 +5,7 @@ import (
 	"encoding/binary"
 	"errors"
 	"fmt"
+	"sync/atomic"
 	"time"
 
 	"github.com/wasmerio/wasmer-go/wasmer"
@@ -25,6 +26,9 @@ type (
 		engine *wasmer.Engine
 		store  *wasmer.Store
 		module *wasmer.Module
+
+		// closed is atomically updated to ensure Close is only invoked once.
+		closed uint32
 	}
 
 	// Instance is a single instantiation of a module with its own memory.
@@ -66,6 +70,9 @@ type (
 		clockTimeGet     *wasmer.Function
 		environSizesGet  *wasmer.Function
 		environGet       *wasmer.Function
+
+		// closed is atomically updated to ensure Close is only invoked once.
+		closed uint32
 	}
 
 	invokeContext struct {
@@ -125,6 +132,11 @@ func (m *Module) SetWriter(writer wapc.Logger) {
 
 // Instantiate creates a single instance of the module with its own memory.
 func (m *Module) Instantiate(ctx context.Context) (wapc.Instance, error) {
+	if closed := atomic.LoadUint32(&m.closed); closed != 0 {
+		return nil, errors.New("cannot Instantiate when a module is closed")
+	}
+	// Note: There's still a race below, even if the above check is still useful.
+
 	instance := Instance{
 		m: m,
 	}
@@ -521,10 +533,10 @@ func (i *Instance) MemorySize(context.Context) uint32 {
 
 // Invoke calls `operation` with `payload` on the module and returns a byte slice payload.
 func (i *Instance) Invoke(ctx context.Context, operation string, payload []byte) ([]byte, error) {
-	// Make sure instance isn't closed to avoid panics
-	if i.inst == nil {
+	if closed := atomic.LoadUint32(&i.closed); closed != 0 {
 		return nil, fmt.Errorf("error invoking guest with closed instance")
 	}
+	// Note: There's still a race below, even if the above check is still useful.
 
 	context := invokeContext{
 		ctx:       ctx,
@@ -552,9 +564,12 @@ func (i *Instance) Invoke(ctx context.Context, operation string, payload []byte)
 }
 
 // Close closes the single instance.  This should be called before calling `Close` on the Module itself.
-func (i *Instance) Close(context.Context) {
-	// Explicitly release references on wasmer types so they can be GC'ed.
-	i.inst = nil
+func (i *Instance) Close(context.Context) error {
+	if !atomic.CompareAndSwapUint32(&i.closed, 0, 1) {
+		return nil
+	}
+
+	// Explicitly release references on wasmer types, so they can be GC'ed.
 	i.mem = nil
 	i.context = nil
 	i.guestRequest = nil
@@ -568,12 +583,27 @@ func (i *Instance) Close(context.Context) {
 	i.consoleLog = nil
 	i.abort = nil
 	i.fdWrite = nil
+	if inst := i.inst; inst != nil {
+		inst.Close()
+	}
+	return nil
 }
 
 // Close closes the module.  This should be called after calling `Close` on any instances that were created.
-func (m *Module) Close(context.Context) {
+func (m *Module) Close(context.Context) error {
+	if !atomic.CompareAndSwapUint32(&m.closed, 0, 1) {
+		return nil
+	}
+
 	// Explicitly release references on wasmer types so they can be GC'ed.
-	m.module = nil
-	m.store = nil
+	if mod := m.module; mod != nil {
+		mod.Close()
+		m.module = nil
+	}
+	if store := m.store; store != nil {
+		store.Close()
+		m.store = nil
+	}
 	m.engine = nil
+	return nil
 }

@@ -25,9 +25,9 @@ type (
 		// Instantiate creates a single instance of the module with its own memory.
 		Instantiate(context.Context) (Instance, error)
 
-		// Close releases resources from this module, ignoring any errors.
+		// Close releases resources from this module, returning the first error encountered.
 		// Note: This should be called before after calling Instance.Close on any instances of this module.
-		Close(context.Context)
+		Close(context.Context) error
 	}
 
 	// Instance is an instantiated Module
@@ -38,9 +38,9 @@ type (
 		// Invoke calls `operation` with `payload` on the module and returns a byte slice payload.
 		Invoke(ctx context.Context, operation string, payload []byte) ([]byte, error)
 
-		// Close releases resources from this instance, ignoring any errors.
+		// Close releases resources from this instance, returning the first error encountered.
 		// Note: This should be called before calling Module.Close.
-		Close(context.Context)
+		Close(context.Context) error
 	}
 )
 
