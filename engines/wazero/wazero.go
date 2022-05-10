@@ -51,8 +51,7 @@ type (
 
 		instanceCounter uint64
 
-		wasi, assemblyScript, wapc api.Module
-		config                     wazero.ModuleConfig
+		config wazero.ModuleConfig
 
 		// closed is atomically updated to ensure Close is only invoked once.
 		closed uint32
@@ -118,23 +117,23 @@ func (e *engine) New(ctx context.Context, source []byte, hostCallHandler wapc.Ho
 		WithStdout(&stdout{m})                           // redirect Stdout to the logger
 	mod = m
 
-	if m.wasi, err = wasi.InstantiateSnapshotPreview1(ctx, r); err != nil {
-		mod.Close(ctx)
+	if _, err = wasi.InstantiateSnapshotPreview1(ctx, r); err != nil {
+		_ = r.Close(ctx)
 		return
 	}
 
-	if m.assemblyScript, err = instantiateAssemblyScript(ctx, r); err != nil {
-		mod.Close(ctx)
+	if _, err = instantiateAssemblyScript(ctx, r); err != nil {
+		_ = r.Close(ctx)
 		return
 	}
 
-	if m.wapc, err = instantiateWapcHost(ctx, r, m.wapcHostCallHandler, m); err != nil {
-		mod.Close(ctx)
+	if _, err = instantiateWapcHost(ctx, r, m.wapcHostCallHandler, m); err != nil {
+		_ = r.Close(ctx)
 		return
 	}
 
 	if m.compiled, err = r.CompileModule(ctx, source, wazero.NewCompileConfig()); err != nil {
-		mod.Close(ctx)
+		_ = r.Close(ctx)
 		return
 	}
 	return
@@ -396,7 +395,7 @@ func (i *Instance) Invoke(ctx context.Context, operation string, payload []byte)
 }
 
 // Close implements the same method as documented on wapc.Instance.
-func (i *Instance) Close(ctx context.Context) error{
+func (i *Instance) Close(ctx context.Context) error {
 	if !atomic.CompareAndSwapUint32(&i.closed, 0, 1) {
 		return nil
 	}
@@ -408,36 +407,7 @@ func (m *Module) Close(ctx context.Context) (err error) {
 	if !atomic.CompareAndSwapUint32(&m.closed, 0, 1) {
 		return
 	}
-
-	// TODO m.engine.Close() https://github.com/tetratelabs/wazero/issues/382
-	if wapc := m.wapc; wapc != nil {
-		if e := wapc.Close(ctx); e != nil && err != nil {
-			err = e // first error
-		}
-		m.wapc = nil
-	}
-
-	if env := m.assemblyScript; env != nil {
-		if e := env.Close(ctx); e != nil && err != nil {
-			err = e // first error
-		}
-		m.assemblyScript = nil
-	}
-
-	if wasi := m.wasi; wasi != nil {
-		if e := wasi.Close(ctx); e != nil && err != nil {
-			err = e // first error
-		}
-		m.wasi = nil
-	}
-
-	if compiled := m.compiled; compiled != nil {
-		if e := compiled.Close(ctx); e != nil && err != nil {
-			err = e // first error
-		}
-		m.compiled = nil
-	}
-
+	err = m.runtime.Close(ctx) // closes everything
 	m.runtime = nil
 	return
 }
