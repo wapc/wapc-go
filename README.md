@@ -39,13 +39,13 @@ func main() {
 	}
 	module.SetLogger(wapc.Println)
 	module.SetWriter(wapc.Print)
-	defer module.Close()
+	defer module.Close(ctx)
 
 	instance, err := module.Instantiate(ctx)
 	if err != nil {
 		panic(err)
 	}
-	defer instance.Close()
+	defer instance.Close(ctx)
 
 	result, err := instance.Invoke(ctx, "hello", []byte(name))
 	if err != nil {
@@ -86,7 +86,7 @@ Alternatively you can use a `Pool` to manage a pool of instances.
 	if err != nil {
 		panic(err)
 	}
-	defer pool.Close()
+	defer pool.Close(ctx)
 
 	for i := 0; i < 100; i++ {
 		instance, err := pool.Get(10 * time.Millisecond)
@@ -118,7 +118,7 @@ Here are the supported `wapc.Engine` implementations, in alphabetical order:
 |:-----------:|:-----------------:|:-------:|
 | wasmer-go   |`wasmer.Engine()`  |[github.com/wasmerio/wasmer-go](https://pkg.go.dev/github.com/wasmerio/wasmer-go)|
 | wasmtime-go |`wasmtime.Engine()`|[github.com/bytecodealliance/wasmtime-go](https://pkg.go.dev/github.com/bytecodealliance/wasmtime-go)|
-| wazero      |`wazero.Engine()`  |[github.com/tetratelabs/wazero](https://pkg.go.dev/github.com/tetratelabs/wazero)|
+| wazero      |`wazero.Engine()`  |[github.com/tetratelabs/wazero](https://wazero.io)|
 
 ### Differences with [wapc-rs](https://github.com/wapc/wapc-rs) (Rust)
 
