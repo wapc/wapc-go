@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"sync/atomic"
 
 	"github.com/bytecodealliance/wasmtime-go"
 
@@ -23,6 +24,9 @@ type (
 		engine *wasmtime.Engine
 		store  *wasmtime.Store
 		module *wasmtime.Module
+
+		// closed is atomically updated to ensure Close is only invoked once.
+		closed uint32
 	}
 
 	// Instance is a single instantiation of a module with its own memory.
@@ -48,6 +52,9 @@ type (
 
 		// AssemblyScript functions
 		abort *wasmtime.Func
+
+		// closed is atomically updated to ensure Close is only invoked once.
+		closed uint32
 	}
 
 	invokeContext struct {
@@ -110,6 +117,11 @@ func (m *Module) SetWriter(writer wapc.Logger) {
 
 // Instantiate creates a single instance of the module with its own memory.
 func (m *Module) Instantiate(ctx context.Context) (wapc.Instance, error) {
+	if closed := atomic.LoadUint32(&m.closed); closed != 0 {
+		return nil, errors.New("cannot Instantiate when a module is closed")
+	}
+	// Note: There's still a race below, even if the above check is still useful.
+
 	instance := Instance{
 		m: m,
 	}
@@ -406,10 +418,10 @@ func (i *Instance) MemorySize(context.Context) uint32 {
 
 // Invoke calls `operation` with `payload` on the module and returns a byte slice payload.
 func (i *Instance) Invoke(ctx context.Context, operation string, payload []byte) ([]byte, error) {
-	// Make sure instance isn't closed to avoid panics
-	if i.inst == nil {
+	if closed := atomic.LoadUint32(&i.closed); closed != 0 {
 		return nil, fmt.Errorf("error invoking guest with closed instance")
 	}
+	// Note: There's still a race below, even if the above check is still useful.
 
 	context := invokeContext{
 		ctx:       ctx,
@@ -437,8 +449,12 @@ func (i *Instance) Invoke(ctx context.Context, operation string, payload []byte)
 }
 
 // Close closes the single instance.  This should be called before calling `Close` on the Module itself.
-func (i *Instance) Close(context.Context) {
-	// Explicitly release references on wasmtime types so they can be GC'ed.
+func (i *Instance) Close(context.Context) error {
+	if !atomic.CompareAndSwapUint32(&i.closed, 0, 1) {
+		return nil
+	}
+
+	// Explicitly release references on wasmtime types, so they can be GC'ed.
 	i.inst = nil
 	i.mem = nil
 	i.context = nil
@@ -452,12 +468,21 @@ func (i *Instance) Close(context.Context) {
 	i.hostError = nil
 	i.consoleLog = nil
 	i.abort = nil
+	return nil // wasmtime only closes via finalizer
 }
 
 // Close closes the module.  This should be called after calling `Close` on any instances that were created.
-func (m *Module) Close(context.Context) {
-	// Explicitly release references on wasmtime types so they can be GC'ed.
+func (m *Module) Close(context.Context) error {
+	if !atomic.CompareAndSwapUint32(&m.closed, 0, 1) {
+		return nil
+	}
+
+	// Explicitly release references on wasmtime types, so they can be GC'ed.
 	m.module = nil
-	m.store = nil
+	if store := m.store; store != nil {
+		store.GC()
+		m.store = nil
+	}
 	m.engine = nil
+	return nil // wasmtime only closes via finalizer
 }
