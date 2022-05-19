@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"github.com/tetratelabs/wazero/assemblyscript"
 	"io"
 	"sync/atomic"
 
@@ -114,7 +115,7 @@ func (e *engine) New(ctx context.Context, source []byte, hostCallHandler wapc.Ho
 	m := &Module{runtime: r, wapcHostCallHandler: hostCallHandler}
 	m.config = wazero.NewModuleConfig().
 		WithStartFunctions(functionStart, functionInit). // Call any WASI or waPC start functions on instantiate.
-		WithStdout(&stdout{m})                           // redirect Stdout to the logger
+		WithStdout(&stdout{m}) // redirect Stdout to the logger
 	mod = m
 
 	if _, err = wasi.InstantiateSnapshotPreview1(ctx, r); err != nil {
@@ -122,7 +123,8 @@ func (e *engine) New(ctx context.Context, source []byte, hostCallHandler wapc.Ho
 		return
 	}
 
-	if _, err = instantiateAssemblyScript(ctx, r); err != nil {
+	// This disables the abort message as no other engines write it.
+	if _, err = assemblyscript.NewModuleBuilder(r).WithAbortMessageDisabled().Instantiate(ctx); err != nil {
 		_ = r.Close(ctx)
 		return
 	}
@@ -147,37 +149,6 @@ func (m *Module) SetLogger(logger wapc.Logger) {
 // SetWriter implements the same method as documented on wapc.Module.
 func (m *Module) SetWriter(writer wapc.Logger) {
 	m.wasiStdout = writer
-}
-
-// assemblyScript includes "Special imports" only used In AssemblyScript when a user didn't add `import "wasi"` to their
-// entry file.
-//
-// See https://www.assemblyscript.org/concepts.html#special-imports
-// See https://www.assemblyscript.org/concepts.html#targeting-wasi
-// See https://www.assemblyscript.org/compiler.html#compiler-options
-// See https://github.com/AssemblyScript/assemblyscript/issues/1562
-type assemblyScript struct{}
-
-// instantiateAssemblyScript instantiates a assemblyScript and returns it and its corresponding module, or an error.
-func instantiateAssemblyScript(ctx context.Context, r wazero.Runtime) (api.Module, error) {
-	a := &assemblyScript{}
-	// Only define the legacy "env" "abort" import as it is the only import supported by other engines.
-	return r.NewModuleBuilder("env").ExportFunction("abort", a.envAbort).Instantiate(ctx)
-}
-
-// envAbort is called on unrecoverable errors. This is typically present in Wasm compiled from AssemblyScript, if
-// assertions are enabled or errors are thrown.
-//
-// The implementation only closes the module with exit code 255 part of the default implementation, as logging is both
-// complicated (because lengths aren't provided in the signature), and should go to STDERR, which isn't defined yet in
-// waPC. Moreover, all other engines stub this function (no-op, not even exit!).
-//
-// Here's the import in a user's module that ends up using this, in WebAssembly 1.0 (MVP) Text Format:
-//	(import "env" "abort" (func $~lib/builtins/abort (param i32 i32 i32 i32)))
-//
-// See https://github.com/AssemblyScript/assemblyscript/blob/fa14b3b03bd4607efa52aaff3132bea0c03a7989/std/assembly/wasi/index.ts#L18
-func (a *assemblyScript) envAbort(ctx context.Context, m api.Module, messageOffset, fileNameOffset, line, col uint32) {
-	_ = m.CloseWithExitCode(ctx, 255)
 }
 
 // wapcHost implements all required waPC host function exports.
