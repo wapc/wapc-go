@@ -115,7 +115,7 @@ func (e *engine) New(ctx context.Context, source []byte, hostCallHandler wapc.Ho
 	m := &Module{runtime: r, wapcHostCallHandler: hostCallHandler}
 	m.config = wazero.NewModuleConfig().
 		WithStartFunctions(functionStart, functionInit). // Call any WASI or waPC start functions on instantiate.
-		WithStdout(&stdout{m}) // redirect Stdout to the logger
+		WithStdout(&stdout{m})                           // redirect Stdout to the logger
 	mod = m
 
 	if _, err = wasi.InstantiateSnapshotPreview1(ctx, r); err != nil {
