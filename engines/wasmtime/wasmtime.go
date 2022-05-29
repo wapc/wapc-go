@@ -1,3 +1,5 @@
+//go:build (((amd64 || arm64) && !windows) || (amd64 && windows)) && cgo && !wasmer
+
 package wasmtime
 
 import (
