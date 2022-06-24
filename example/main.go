@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/JanFalkin/wapc-go"
+	"github.com/JanFalkin/wapc-go/engines/wazero"
 )
 
 func main() {
@@ -21,7 +22,7 @@ func main() {
 		panic(err)
 	}
 
-	engine := getEngine()
+	engine := wazero.Engine()
 
 	module, err := engine.New(ctx, code, hostCall)
 	if err != nil {

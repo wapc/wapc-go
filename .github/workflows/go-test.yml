@@ -25,4 +25,4 @@ jobs:
       run: go test -v ./...
 
     - name: Run Example
-      run: go run ./example waPC!
+      run: go run example/main.go waPC!
