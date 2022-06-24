@@ -129,8 +129,7 @@ For example, to switch the engine to wasmer, change [example/main.go](example/ma
         "strings"
 
         "github.com/JanFalkin/wapc-go"
--       "github.com/JanFalkin/wapc-go/engines/wazero"
-+       "github.com/JanFalkin/wapc-go/engines/wasmer"
+        "github.com/JanFalkin/wapc-go/engines/wazero"
  )
 
  func main() {
@@ -138,8 +137,7 @@ For example, to switch the engine to wasmer, change [example/main.go](example/ma
                 panic(err)
         }
 
--       engine := wazero.Engine()
-+       engine := wasmer.Engine()
+        engine := wazero.Engine()
 
         module, err := engine.New(ctx, code, hostCall)
         if err != nil {
