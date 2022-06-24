@@ -4,7 +4,7 @@ This is the Golang implementation of the **waPC** standard for WebAssembly host 
 
 ## Example
 
-The following is a simple example of synchronous, bi-directional procedure calls between a WebAssembly host runtime and the guest module.
+The following is a simple example of synchronous, bidirectional procedure calls between a WebAssembly host runtime and the guest module.
 
 ```go
 package main
@@ -16,7 +16,7 @@ import (
 	"strings"
 
 	"github.com/JanFalkin/wapc-go"
-	"github.com/JanFalkin/wapc-go/engines/wasmer"
+	"github.com/JanFalkin/wapc-go/engines/wazero"
 )
 
 func main() {
@@ -31,7 +31,7 @@ func main() {
 		panic(err)
 	}
 
-	engine := wasmer.Engine()
+	engine := wazero.Engine()
 
 	module, err := engine.New(ctx, code, hostCall)
 	if err != nil {
@@ -39,13 +39,13 @@ func main() {
 	}
 	module.SetLogger(wapc.Println)
 	module.SetWriter(wapc.Print)
-	defer module.Close()
+	defer module.Close(ctx)
 
 	instance, err := module.Instantiate(ctx)
 	if err != nil {
 		panic(err)
 	}
-	defer instance.Close()
+	defer instance.Close(ctx)
 
 	result, err := instance.Invoke(ctx, "hello", []byte(name))
 	if err != nil {
@@ -86,7 +86,7 @@ Alternatively you can use a `Pool` to manage a pool of instances.
 	if err != nil {
 		panic(err)
 	}
-	defer pool.Close()
+	defer pool.Close(ctx)
 
 	for i := 0; i < 100; i++ {
 		instance, err := pool.Get(10 * time.Millisecond)
@@ -108,17 +108,49 @@ Alternatively you can use a `Pool` to manage a pool of instances.
 	}
 ```
 
-While the above example uses Wasmer, wapc-go is decoupled (via `wapc.Engine`) and can be used with different runtimes.
+While the above example uses wazero, wapc-go is decoupled (via [`wapc.Engine`](#engines)) and can be used with different runtimes.
 
 ## Engines
 
 Here are the supported `wapc.Engine` implementations, in alphabetical order:
 
-| Name        | Usage             | Package |
-|:-----------:|:-----------------:|:-------:|
-| wasmer-go   |`wasmer.Engine()`  |[github.com/wasmerio/wasmer-go](https://pkg.go.dev/github.com/wasmerio/wasmer-go)|
-| wasmtime-go |`wasmtime.Engine()`|[github.com/bytecodealliance/wasmtime-go](https://pkg.go.dev/github.com/bytecodealliance/wasmtime-go)|
-| wazero      |`wazero.Engine()`  |[github.com/tetratelabs/wazero](https://pkg.go.dev/github.com/tetratelabs/wazero)|
+|    Name     |        Usage        | Build Tag |                                                Package                                                |
+|:-----------:|:-------------------:|-----------|:-----------------------------------------------------------------------------------------------------:|
+|  wasmer-go  |  `wasmer.Engine()`  | wasmer    |           [github.com/wasmerio/wasmer-go](https://pkg.go.dev/github.com/wasmerio/wasmer-go)           |
+| wasmtime-go | `wasmtime.Engine()` | wasmtime  | [github.com/bytecodealliance/wasmtime-go](https://pkg.go.dev/github.com/bytecodealliance/wasmtime-go) |
+|   wazero    |  `wazero.Engine()`  | N/A       |                          [github.com/tetratelabs/wazero](https://wazero.io)                           |
+
+
+For example, to switch the engine to wasmer, change [example/main.go](example/main.go) like below:
+```diff
+--- a/example/main.go
++++ b/example/main.go
+@@ -7,7 +7,7 @@ import (
+        "strings"
+
+        "github.com/JanFalkin/wapc-go"
+-       "github.com/JanFalkin/wapc-go/engines/wazero"
++       "github.com/JanFalkin/wapc-go/engines/wasmer"
+ )
+
+ func main() {
+@@ -22,7 +22,7 @@ func main() {
+                panic(err)
+        }
+
+-       engine := wazero.Engine()
++       engine := wasmer.Engine()
+
+        module, err := engine.New(ctx, code, hostCall)
+        if err != nil {
+```
+
+Then, run with its build tag:
+```bash
+$ go run --tags wasmer example/main.go waPC!
+hello called
+Hello, WaPC!
+```
 
 ### Differences with [wapc-rs](https://github.com/wapc/wapc-rs) (Rust)
 
