@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"github.com/tetratelabs/wazero/assemblyscript"
 	"io"
 	"sync/atomic"
 	"unsafe"
@@ -47,13 +48,12 @@ type (
 		// wapcHostCallHandler is the value of wapcHost.callHandler
 		wapcHostCallHandler wapc.HostCallHandler
 
-		runtime wazero.Runtime
-		code    *wazero.CompiledCode
+		runtime  wazero.Runtime
+		compiled wazero.CompiledModule
 
 		instanceCounter uint64
 
-		wasi, assemblyScript, wapc api.Module
-		config                     *wazero.ModuleConfig
+		config wazero.ModuleConfig
 
 		// closed is atomically updated to ensure Close is only invoked once.
 		closed uint32
@@ -120,8 +120,8 @@ func (e *engine) NewWithDebug(code []byte, hostCallHandler wapc.HostCallHandler)
 }
 
 // New compiles a `Module` from `code`.
-func (e *engine) New(ctx context.Context, code []byte, hostCallHandler wapc.HostCallHandler) (mod wapc.Module, err error) {
-	rc := wazero.NewRuntimeConfig().WithFeatureSignExtensionOps(true)
+func (e *engine) New(ctx context.Context, source []byte, hostCallHandler wapc.HostCallHandler) (mod wapc.Module, err error) {
+	rc := wazero.NewRuntimeConfig().WithWasmCore2()
 	r := wazero.NewRuntimeWithConfig(rc)
 	m := &Module{runtime: r, wapcHostCallHandler: hostCallHandler}
 	m.config = wazero.NewModuleConfig().
@@ -129,23 +129,24 @@ func (e *engine) New(ctx context.Context, code []byte, hostCallHandler wapc.Host
 		WithStdout(&stdout{m})                           // redirect Stdout to the logger
 	mod = m
 
-	if m.wasi, err = wasi.InstantiateSnapshotPreview1(ctx, r); err != nil {
-		mod.Close(ctx)
+	if _, err = wasi.InstantiateSnapshotPreview1(ctx, r); err != nil {
+		_ = r.Close(ctx)
 		return
 	}
 
-	if m.assemblyScript, err = instantiateAssemblyScript(ctx, r); err != nil {
-		mod.Close(ctx)
+	// This disables the abort message as no other engines write it.
+	if _, err = assemblyscript.NewModuleBuilder(r).WithAbortMessageDisabled().Instantiate(ctx); err != nil {
+		_ = r.Close(ctx)
 		return
 	}
 
-	if m.wapc, err = instantiateWapcHost(ctx, r, m.wapcHostCallHandler, m); err != nil {
-		mod.Close(ctx)
+	if _, err = instantiateWapcHost(ctx, r, m.wapcHostCallHandler, m); err != nil {
+		_ = r.Close(ctx)
 		return
 	}
 
-	if m.code, err = r.CompileModule(ctx, code); err != nil {
-		mod.Close(ctx)
+	if m.compiled, err = r.CompileModule(ctx, source, wazero.NewCompileConfig()); err != nil {
+		_ = r.Close(ctx)
 		return
 	}
 	return
@@ -159,37 +160,6 @@ func (m *Module) SetLogger(logger wapc.Logger) {
 // SetWriter implements the same method as documented on wapc.Module.
 func (m *Module) SetWriter(writer wapc.Logger) {
 	m.wasiStdout = writer
-}
-
-// assemblyScript includes "Special imports" only used In AssemblyScript when a user didn't add `import "wasi"` to their
-// entry file.
-//
-// See https://www.assemblyscript.org/concepts.html#special-imports
-// See https://www.assemblyscript.org/concepts.html#targeting-wasi
-// See https://www.assemblyscript.org/compiler.html#compiler-options
-// See https://github.com/AssemblyScript/assemblyscript/issues/1562
-type assemblyScript struct{}
-
-// instantiateAssemblyScript instantiates a assemblyScript and returns it and its corresponding module, or an error.
-func instantiateAssemblyScript(ctx context.Context, r wazero.Runtime) (api.Module, error) {
-	a := &assemblyScript{}
-	// Only define the legacy "env" "abort" import as it is the only import supported by other engines.
-	return r.NewModuleBuilder("env").ExportFunction("abort", a.envAbort).Instantiate(ctx)
-}
-
-// envAbort is called on unrecoverable errors. This is typically present in Wasm compiled from AssemblyScript, if
-// assertions are enabled or errors are thrown.
-//
-// The implementation only closes the module with exit code 255 part of the default implementation, as logging is both
-// complicated (because lengths aren't provided in the signature), and should go to STDERR, which isn't defined yet in
-// waPC. Moreover, all other engines stub this function (no-op, not even exit!).
-//
-// Here's the import in a user's module that ends up using this, in WebAssembly 1.0 (MVP) Text Format:
-//	(import "env" "abort" (func $~lib/builtins/abort (param i32 i32 i32 i32)))
-//
-// See https://github.com/AssemblyScript/assemblyscript/blob/fa14b3b03bd4607efa52aaff3132bea0c03a7989/std/assembly/wasi/index.ts#L18
-func (a *assemblyScript) envAbort(ctx context.Context, m api.Module, messageOffset, fileNameOffset, line, col uint32) {
-	_ = m.CloseWithExitCode(ctx, 255)
 }
 
 // wapcHost implements all required waPC host function exports.
@@ -343,7 +313,7 @@ func (m *Module) Instantiate(ctx context.Context) (wapc.Instance, error) {
 
 	moduleName := fmt.Sprintf("%d", atomic.AddUint64(&m.instanceCounter, 1))
 
-	module, err := m.runtime.InstantiateModuleWithConfig(ctx, m.code, m.config.WithName(moduleName))
+	module, err := m.runtime.InstantiateModule(ctx, m.compiled, m.config.WithName(moduleName))
 	if err != nil {
 		return nil, err
 	}
@@ -411,37 +381,21 @@ func (i *Instance) Invoke(ctx context.Context, operation string, payload []byte)
 }
 
 // Close implements the same method as documented on wapc.Instance.
-func (i *Instance) Close(ctx context.Context) {
+func (i *Instance) Close(ctx context.Context) error {
 	if !atomic.CompareAndSwapUint32(&i.closed, 0, 1) {
-		return
+		return nil
 	}
-	_ = i.m.Close(ctx)
+	return i.m.Close(ctx)
 }
 
 // Close implements the same method as documented on wapc.Module.
-func (m *Module) Close(ctx context.Context) {
+func (m *Module) Close(ctx context.Context) (err error) {
 	if !atomic.CompareAndSwapUint32(&m.closed, 0, 1) {
 		return
 	}
-
-	// TODO m.engine.Close() https://github.com/tetratelabs/wazero/issues/382
-	if wapc := m.wapc; wapc != nil {
-		_ = wapc.Close(ctx)
-		m.wapc = nil
-	}
-
-	if env := m.assemblyScript; env != nil {
-		_ = env.Close(ctx)
-		m.assemblyScript = nil
-	}
-
-	if wasi := m.wasi; wasi != nil {
-		_ = wasi.Close(ctx)
-		m.wasi = nil
-	}
-
-	m.code = nil
+	err = m.runtime.Close(ctx) // closes everything
 	m.runtime = nil
+	return
 }
 
 // requireReadString is a convenience function that casts requireRead
