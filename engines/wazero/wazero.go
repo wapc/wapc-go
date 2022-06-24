@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"github.com/tetratelabs/wazero/assemblyscript"
 	"io"
 	"sync/atomic"
 	"unsafe"
