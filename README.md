@@ -122,15 +122,15 @@ Here are the supported `wapc.Engine` implementations, in alphabetical order:
 
 
 For example, to switch the engine to wasmer, change [example/main.go](example/main.go) like below:
-```
+```diff
 --- a/example/main.go
 +++ b/example/main.go
 @@ -7,7 +7,7 @@ import (
         "strings"
 
         "github.com/wapc/wapc-go"
--       "github.com/wapc/wapc-go/engines/wazero"
-+       "github.com/wapc/wapc-go/engines/wasmer"
+-       "github.com/JanFalkin/wapc-go/engines/wazero"
++       "github.com/JanFalkin/wapc-go/engines/wasmer"
  )
 
  func main() {
