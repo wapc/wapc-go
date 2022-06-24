@@ -122,14 +122,15 @@ Here are the supported `wapc.Engine` implementations, in alphabetical order:
 
 
 For example, to switch the engine to wasmer, change [example/main.go](example/main.go) like below:
-```diff
+```
 --- a/example/main.go
 +++ b/example/main.go
 @@ -7,7 +7,7 @@ import (
         "strings"
 
-        "github.com/JanFalkin/wapc-go"
-        "github.com/JanFalkin/wapc-go/engines/wazero"
+        "github.com/wapc/wapc-go"
+-       "github.com/wapc/wapc-go/engines/wazero"
++       "github.com/wapc/wapc-go/engines/wasmer"
  )
 
  func main() {
@@ -137,7 +138,8 @@ For example, to switch the engine to wasmer, change [example/main.go](example/ma
                 panic(err)
         }
 
-        engine := wazero.Engine()
+-       engine := wazero.Engine()
++       engine := wasmer.Engine()
 
         module, err := engine.New(ctx, code, hostCall)
         if err != nil {
