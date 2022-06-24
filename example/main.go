@@ -17,7 +17,7 @@ func main() {
 	}
 	name := os.Args[1]
 	ctx := context.Background()
-	code, err := os.ReadFile("../hello/hello.wasm")
+	code, err := os.ReadFile("hello/hello.wasm")
 	if err != nil {
 		panic(err)
 	}
