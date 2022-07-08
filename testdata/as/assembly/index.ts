@@ -1,4 +1,9 @@
-import { register, hostCall, handleCall, handleAbort } from "@wapc/as-guest";
+import {
+  register,
+  handleCall,
+  hostCall,
+  handleAbort,
+} from "@wapc/as-guest";
 
 // Register Successful Function
 register("echo", function(payload: ArrayBuffer): ArrayBuffer {

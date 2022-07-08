@@ -21,6 +21,16 @@ jobs:
       with:
         go-version: 1.17
 
+    - name: Set up TinyGo
+      run: |  # Installing via curl so commands are similar on OS/x
+        tinygo_version=0.24.0
+        curl -sSL https://github.com/tinygo-org/tinygo/releases/download/v${tinygo_version}/tinygo${tinygo_version}.linux-amd64.tar.gz | sudo tar -C /usr/local -xzf -
+        echo "TINYGOROOT=/usr/local/tinygo" >> $GITHUB_ENV
+        echo "/usr/local/tinygo/bin" >> $GITHUB_PATH
+
+    - name: Build Wasm
+      run: make build-wasm
+
     - name: Test
       run: go test -v ./...
 

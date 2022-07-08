@@ -6,7 +6,10 @@ tests:
 	go test -v -covermode=count -coverprofile=.coverage/coverage.out ./...
 	go tool cover -html=.coverage/coverage.out -o .coverage/coverage.html
 
-build-wasm: build-as build-go build-rust
+build-wasm: build-as build-example build-go build-rust
+
+build-example:
+	$(MAKE) -C hello build
 
 build-as:
 	$(MAKE) -C testdata/as build
