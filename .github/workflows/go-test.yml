@@ -21,6 +21,12 @@ jobs:
       with:
         go-version: 1.17
 
+    - name: Set up Rust
+      uses: actions-rs/toolchain@v1
+      with:
+        toolchain: stable
+        target: wasm32-unknown-unknown
+
     - name: Set up TinyGo
       run: |  # Installing via curl so commands are similar on OS/x
         tinygo_version=0.24.0
