@@ -3,15 +3,15 @@
   "version": "1.0.0",
   "description": "AssemblyScript waPC example",
   "scripts": {
-    "build": "asc assembly/index.ts -b hello.wasm --use abort=assembly/index/abort --optimize"
+    "build": "asc assembly/index.ts -o hello.wasm --use abort=assembly/index/abort --optimize"
   },
   "author": "",
   "license": "ISC",
   "dependencies": {
-    "@wapc/as-guest": "^v0.2.1"
+    "@wapc/as-guest": "^v0.3.1"
   },
   "devDependencies": {
     "assemblyscript": "Note: assemblyscript version must match @wapc/as-guest",
-    "assemblyscript": "^0.17.14"
+    "assemblyscript": "^0.20.13"
   }
 }
