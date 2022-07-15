@@ -2,17 +2,16 @@
   "name": "hello_wapc",
   "version": "1.0.0",
   "description": "AssemblyScript waPC example",
-  "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "build": "asc assembly/index.ts -o hello.wasm --use abort=assembly/index/abort --optimize"
   },
   "author": "",
   "license": "ISC",
   "dependencies": {
-    "@assemblyscript/loader": "^0.19.11",
-    "@wapc/as-guest": "^0.2.1"
+    "@wapc/as-guest": "^v0.3.1"
   },
   "devDependencies": {
-    "assemblyscript": "^0.19.11"
+    "assemblyscript": "Note: assemblyscript version must match @wapc/as-guest",
+    "assemblyscript": "^0.20.13"
   }
 }

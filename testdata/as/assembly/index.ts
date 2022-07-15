@@ -1,15 +1,21 @@
-import { register, hostCall, handleCall, handleAbort } from "@wapc/as-guest";
+import {
+  register,
+  handleCall,
+  hostCall,
+  handleAbort,
+  Result,
+} from "@wapc/as-guest";
 
 // Register Successful Function
-register("echo", function(payload: ArrayBuffer): ArrayBuffer {
+register("echo", function(payload: ArrayBuffer): Result<ArrayBuffer> {
   // Callback with Payload
   hostCall("wapc", "testing", "echo", payload)
-  return payload
+  return Result.ok(payload);
 })
 
 // Register Error Function
-register("nope", function(payload: ArrayBuffer): ArrayBuffer {
-  throw new Error("No payload")
+register("nope", function(payload: ArrayBuffer): Result<ArrayBuffer> {
+  throw Result.error<ArrayBuffer>(new Error("No payload"));
 })
 
 // waPC boilerplate code

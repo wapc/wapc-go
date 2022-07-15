@@ -8,11 +8,10 @@ import (
 	"sync/atomic"
 	"unsafe"
 
-	"github.com/tetratelabs/wazero/assemblyscript"
-
 	"github.com/tetratelabs/wazero"
 	"github.com/tetratelabs/wazero/api"
-	"github.com/tetratelabs/wazero/wasi"
+	"github.com/tetratelabs/wazero/assemblyscript"
+	"github.com/tetratelabs/wazero/wasi_snapshot_preview1"
 
 	"github.com/JanFalkin/wapc-go"
 )
@@ -130,13 +129,15 @@ func (e *engine) New(ctx context.Context, source []byte, hostCallHandler wapc.Ho
 		WithStdout(&stdout{m})                           // redirect Stdout to the logger
 	mod = m
 
-	if _, err = wasi.InstantiateSnapshotPreview1(ctx, r); err != nil {
+	if _, err = wasi_snapshot_preview1.Instantiate(ctx, r); err != nil {
 		_ = r.Close(ctx)
 		return
 	}
 
 	// This disables the abort message as no other engines write it.
-	if _, err = assemblyscript.NewModuleBuilder(r).WithAbortMessageDisabled().Instantiate(ctx); err != nil {
+	envBuilder := r.NewModuleBuilder("env")
+	assemblyscript.NewFunctionExporter().WithAbortMessageDisabled().ExportFunctions(envBuilder)
+	if _, err = envBuilder.Instantiate(ctx, r); err != nil {
 		_ = r.Close(ctx)
 		return
 	}
@@ -191,7 +192,7 @@ func instantiateWapcHost(ctx context.Context, r wazero.Runtime, callHandler wapc
 		ExportFunction("__guest_error", h.guestError).
 		ExportFunction("__host_error", h.hostError).
 		ExportFunction("__host_error_len", h.hostErrorLen).
-		Instantiate(ctx)
+		Instantiate(ctx, r)
 }
 
 // hostCall is the WebAssembly function export "__host_call", which initiates a host using the callHandler using
@@ -408,7 +409,7 @@ func requireReadString(ctx context.Context, mem api.Memory, fieldName string, of
 func requireRead(ctx context.Context, mem api.Memory, fieldName string, offset, byteCount uint32) []byte {
 	buf, ok := mem.Read(ctx, offset, byteCount)
 	if !ok {
-		panic(fmt.Errorf("out of range reading %s", fieldName))
+		panic(fmt.Errorf("out of memory reading %s", fieldName))
 	}
 	return buf
 }
