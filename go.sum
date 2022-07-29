@@ -12,6 +12,8 @@ github.com/stretchr/testify v1.7.0 h1:nwc3DEeHmmLAfoZucVR881uASk0Mfjw8xYJ99tb5Cc
 github.com/stretchr/testify v1.7.0/go.mod h1:6Fq8oRcR53rry900zMqJjRRixrwX3KX962/h/Wwjteg=
 github.com/tetratelabs/wazero v0.0.0-20220714084325-040736caac8f h1:MmGwq39JVO05i+4oj7TyZPJLMC5Sn+d2qqyywKVHEDc=
 github.com/tetratelabs/wazero v0.0.0-20220714084325-040736caac8f/go.mod h1:Y4X/zO4sC2dJjZG9GDYNRbJGogfqFYJY/BbyKlOxXGI=
+github.com/tetratelabs/wazero v0.0.0-20220728233641-ce2f4475553c h1:mQxmxYVpLGQUlbUETKTrdsV9KseJK0oeMRsSe+3Wppw=
+github.com/tetratelabs/wazero v0.0.0-20220728233641-ce2f4475553c/go.mod h1:Y4X/zO4sC2dJjZG9GDYNRbJGogfqFYJY/BbyKlOxXGI=
 github.com/tinylib/msgp v1.1.5/go.mod h1:eQsjooMTnV42mHu917E26IogZ2930nFyBQdofk10Udg=
 github.com/ttacon/chalk v0.0.0-20160626202418-22c06c80ed31/go.mod h1:onvgF043R+lC5RZ8IT9rBXDaEDnpnw/Cl+HFiw+v/7Q=
 github.com/wasmerio/wasmer-go v1.0.5-0.20220411075136-586bbfef6447 h1:KZqyjOnZ/GrEjaz+l36cNqvrRbp18upWIUiMo/Sq+eI=
