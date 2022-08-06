@@ -18,14 +18,13 @@ type (
 
 	// Module represents a compile waPC module.
 	Module struct {
-		logger wapc.Logger // Logger to use for waPC's __console_log
-		writer wapc.Logger // Logger to use for WASI fd_write (where fd == 1 for standard out)
-
 		hostCallHandler wapc.HostCallHandler
 
 		engine *wasmtime.Engine
 		store  *wasmtime.Store
 		module *wasmtime.Module
+
+		logger wapc.Logger
 
 		// closed is atomically updated to ensure Close is only invoked once.
 		closed uint32
@@ -86,15 +85,16 @@ func (e *engine) Name() string {
 	return "wasmtime"
 }
 
-// New compiles a `Module` from `code`.
-func (e *engine) New(_ context.Context, code []byte, hostCallHandler wapc.HostCallHandler) (wapc.Module, error) {
+// New implements the same method as documented on wapc.Engine.
+func (e *engine) New(_ context.Context, host wapc.HostCallHandler, guest []byte, config *wapc.ModuleConfig) (mod wapc.Module, err error) {
 	engine := wasmtime.NewEngine()
 	store := wasmtime.NewStore(engine)
 
 	wasiConfig := wasmtime.NewWasiConfig()
+	// Note: wasmtime does not support writer-based stdout/stderr
 	store.SetWasi(wasiConfig)
 
-	module, err := wasmtime.NewModule(engine, code)
+	module, err := wasmtime.NewModule(engine, guest)
 	if err != nil {
 		return nil, err
 	}
@@ -103,18 +103,9 @@ func (e *engine) New(_ context.Context, code []byte, hostCallHandler wapc.HostCa
 		engine:          engine,
 		store:           store,
 		module:          module,
-		hostCallHandler: hostCallHandler,
+		logger:          config.Logger,
+		hostCallHandler: host,
 	}, nil
-}
-
-// SetLogger sets the waPC logger for __console_log calls.
-func (m *Module) SetLogger(logger wapc.Logger) {
-	m.logger = logger
-}
-
-// SetWriter sets the writer for WASI fd_write calls to standard out.
-func (m *Module) SetWriter(writer wapc.Logger) {
-	m.writer = writer
 }
 
 // Instantiate creates a single instance of the module with its own memory.
@@ -187,7 +178,7 @@ func (i *Instance) envRuntime() map[string]*wasmtime.Func {
 		wasmtime.NewValType(wasmtime.KindI32),
 		wasmtime.NewValType(wasmtime.KindI32),
 	}
-	results := []*wasmtime.ValType{}
+	var results []*wasmtime.ValType
 
 	i.abort = wasmtime.NewFunc(
 		i.m.store,

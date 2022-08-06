@@ -7,6 +7,7 @@ import (
 	"encoding/binary"
 	"errors"
 	"fmt"
+	"io"
 	"sync/atomic"
 	"time"
 
@@ -20,14 +21,14 @@ type (
 
 	// Module represents a compile waPC module.
 	Module struct {
-		logger wapc.Logger // Logger to use for waPC's __console_log
-		writer wapc.Logger // Logger to use for WASI fd_write (where fd == 1 for standard out)
-
 		hostCallHandler wapc.HostCallHandler
 
 		engine *wasmer.Engine
 		store  *wasmer.Store
 		module *wasmer.Module
+
+		logger         wapc.Logger
+		stdout, stderr io.Writer
 
 		// closed is atomically updated to ensure Close is only invoked once.
 		closed uint32
@@ -104,12 +105,12 @@ func (e *engine) Name() string {
 	return "wasmer"
 }
 
-// New compiles a `Module` from `code`.
-func (e *engine) New(_ context.Context, code []byte, hostCallHandler wapc.HostCallHandler) (wapc.Module, error) {
+// New implements the same method as documented on wapc.Engine.
+func (e *engine) New(_ context.Context, host wapc.HostCallHandler, guest []byte, config *wapc.ModuleConfig) (mod wapc.Module, err error) {
 	engine := wasmer.NewEngine()
 	store := wasmer.NewStore(engine)
 
-	module, err := wasmer.NewModule(store, code)
+	module, err := wasmer.NewModule(store, guest)
 	if err != nil {
 		return nil, err
 	}
@@ -118,18 +119,11 @@ func (e *engine) New(_ context.Context, code []byte, hostCallHandler wapc.HostCa
 		engine:          engine,
 		store:           store,
 		module:          module,
-		hostCallHandler: hostCallHandler,
+		logger:          config.Logger,
+		stdout:          config.Stdout,
+		stderr:          config.Stderr,
+		hostCallHandler: host,
 	}, nil
-}
-
-// SetLogger sets the waPC logger for __console_log calls.
-func (m *Module) SetLogger(logger wapc.Logger) {
-	m.logger = logger
-}
-
-// SetWriter sets the writer for WASI fd_write calls to standard out.
-func (m *Module) SetWriter(writer wapc.Logger) {
-	m.writer = writer
 }
 
 // Instantiate creates a single instance of the module with its own memory.
@@ -353,12 +347,20 @@ func (i *Instance) wasiRuntime() map[string]wasmer.IntoExtern {
 			iovsLen := args[2].I32()
 			writtenPtr := args[3].I32()
 
-			// Only writing to standard out (1) is supported
-			if fileDescriptor != 1 {
+			// Only writing to stdio is supported
+			var writer io.Writer
+			switch fileDescriptor {
+			case 1:
+				writer = i.m.stdout
+			case 2:
+				writer = i.m.stderr
+			}
+
+			if writer == nil {
 				return []wasmer.Value{wasmer.NewI32(0)}, nil
 			}
 
-			if i.m.writer == nil {
+			if i.m.stdout == nil {
 				return []wasmer.Value{wasmer.NewI32(0)}, nil
 			}
 			data := i.mem.Data()
@@ -370,7 +372,7 @@ func (i *Instance) wasiRuntime() map[string]wasmer.IntoExtern {
 				base := binary.LittleEndian.Uint32(iov)
 				length := binary.LittleEndian.Uint32(iov[4:])
 				stringBytes := data[base : base+length]
-				i.m.writer(string(stringBytes))
+				_, _ = writer.Write(stringBytes)
 				iov = iov[8:]
 				bytesWritten += length
 			}

@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 
-	"io"
 	"sync/atomic"
 
 	"github.com/tetratelabs/wazero"
@@ -33,18 +32,6 @@ type (
 
 	// Module represents a compiled waPC module.
 	Module struct {
-		// wasiStdout is used for the WASI function "fd_write", when fd==1 (STDOUT).
-		//
-		// Note: wapc.Logger is adapted to io.Writer with stdout.
-		// Note: Until #19, we assume this is supposed to be updated at runtime, so use this field as a pointer.
-		// See 	// See https://github.com/WebAssembly/WASI/blob/snapshot-01/phases/snapshot/docs.md#fd_write
-		wasiStdout wapc.Logger
-
-		// wapcHostConsoleLogger is used by wapcHost.consoleLog
-		//
-		// Note: Until #19, we assume this is supposed to be updated at runtime, so use this field as a pointer.
-		wapcHostConsoleLogger wapc.Logger
-
 		// wapcHostCallHandler is the value of wapcHost.callHandler
 		wapcHostCallHandler wapc.HostCallHandler
 
@@ -94,29 +81,21 @@ func (e *engine) Name() string {
 	return "wazero"
 }
 
-type stdout struct {
-	// m acts as a field pointer to Module.wasiStdout until #19.
-	m *Module
-}
-
-// Write implements io.Writer by invoking the Module.writer or discarding if nil.
-func (s *stdout) Write(p []byte) (int, error) {
-	w := s.m.wasiStdout
-	if w == nil {
-		return io.Discard.Write(p)
-	}
-	w(string(p))
-	return len(p), nil
-}
-
-// New compiles a `Module` from `code`.
-func (e *engine) New(ctx context.Context, source []byte, hostCallHandler wapc.HostCallHandler) (mod wapc.Module, err error) {
+// New implements the same method as documented on wapc.Engine.
+func (e *engine) New(ctx context.Context, host wapc.HostCallHandler, guest []byte, config *wapc.ModuleConfig) (mod wapc.Module, err error) {
 	rc := wazero.NewRuntimeConfig().WithWasmCore2()
 	r := wazero.NewRuntimeWithConfig(rc)
-	m := &Module{runtime: r, wapcHostCallHandler: hostCallHandler}
+	m := &Module{runtime: r, wapcHostCallHandler: host}
+
 	m.config = wazero.NewModuleConfig().
-		WithStartFunctions(functionStart, functionInit). // Call any WASI or waPC start functions on instantiate.
-		WithStdout(&stdout{m})                           // redirect Stdout to the logger
+		WithStartFunctions(functionStart, functionInit) // Call any WASI or waPC start functions on instantiate.
+
+	if config.Stdout != nil {
+		m.config = m.config.WithStdout(config.Stdout)
+	}
+	if config.Stderr != nil {
+		m.config = m.config.WithStderr(config.Stderr)
+	}
 	mod = m
 
 	if _, err = wasi_snapshot_preview1.Instantiate(ctx, r); err != nil {
@@ -132,26 +111,16 @@ func (e *engine) New(ctx context.Context, source []byte, hostCallHandler wapc.Ho
 		return
 	}
 
-	if _, err = instantiateWapcHost(ctx, r, m.wapcHostCallHandler, m); err != nil {
+	if _, err = instantiateWapcHost(ctx, r, m.wapcHostCallHandler, config.Logger); err != nil {
 		_ = r.Close(ctx)
 		return
 	}
 
-	if m.compiled, err = r.CompileModule(ctx, source, wazero.NewCompileConfig()); err != nil {
+	if m.compiled, err = r.CompileModule(ctx, guest, wazero.NewCompileConfig()); err != nil {
 		_ = r.Close(ctx)
 		return
 	}
 	return
-}
-
-// SetLogger implements the same method as documented on wapc.Module.
-func (m *Module) SetLogger(logger wapc.Logger) {
-	m.wapcHostConsoleLogger = logger
-}
-
-// SetWriter implements the same method as documented on wapc.Module.
-func (m *Module) SetWriter(writer wapc.Logger) {
-	m.wasiStdout = writer
 }
 
 // wapcHost implements all required waPC host function exports.
@@ -161,27 +130,36 @@ type wapcHost struct {
 	// callHandler implements hostCall, which returns false (0) when nil.
 	callHandler wapc.HostCallHandler
 
-	// m acts as a field pointer to Module.wapcHostConsoleLogger until #19.
-	m *Module
+	// logger is used to implement consoleLog.
+	logger wapc.Logger
 }
 
 // instantiateWapcHost instantiates a wapcHost and returns it and its corresponding module, or an error.
-// * r: used to instantiate the waPC host module
-// * callHandler: used to implement hostCall
-// * m: field pointer to the logger used by consoleLog
-func instantiateWapcHost(ctx context.Context, r wazero.Runtime, callHandler wapc.HostCallHandler, m *Module) (api.Module, error) {
-	h := &wapcHost{callHandler: callHandler, m: m}
+//	 - r: used to instantiate the waPC host module
+//	 - callHandler: used to implement hostCall
+//	 - logger: used to implement consoleLog
+func instantiateWapcHost(ctx context.Context, r wazero.Runtime, callHandler wapc.HostCallHandler, logger wapc.Logger) (api.Module, error) {
+	h := &wapcHost{callHandler: callHandler, logger: logger}
 	// Export host functions (in the order defined in https://wapc.io/docs/spec/#required-host-exports)
 	return r.NewModuleBuilder("wapc").
-		ExportFunction("__host_call", h.hostCall).
-		ExportFunction("__console_log", h.consoleLog).
-		ExportFunction("__guest_request", h.guestRequest).
-		ExportFunction("__host_response", h.hostResponse).
-		ExportFunction("__host_response_len", h.hostResponseLen).
-		ExportFunction("__guest_response", h.guestResponse).
-		ExportFunction("__guest_error", h.guestError).
-		ExportFunction("__host_error", h.hostError).
-		ExportFunction("__host_error_len", h.hostErrorLen).
+		ExportFunction("__host_call", h.hostCall,
+			"__host_call", "bind_ptr", "bind_len", "ns_ptr", "ns_len", "cmd_ptr", "cmd_len", "payload_ptr", "payload_len").
+		ExportFunction("__console_log", h.consoleLog,
+			"__console_log", "ptr", "len").
+		ExportFunction("__guest_request", h.guestRequest,
+			"__guest_request", "op_ptr", "ptr").
+		ExportFunction("__host_response", h.hostResponse,
+			"__host_response", "ptr").
+		ExportFunction("__host_response_len", h.hostResponseLen,
+			"__host_response_len").
+		ExportFunction("__guest_response", h.guestResponse,
+			"__guest_response", "ptr", "len").
+		ExportFunction("__guest_error", h.guestError,
+			"__guest_error", "ptr", "len").
+		ExportFunction("__host_error", h.hostError,
+			"__host_error", "ptr").
+		ExportFunction("__host_error_len", h.hostErrorLen,
+			"__host_error_len").
 		Instantiate(ctx, r)
 }
 
@@ -209,9 +187,9 @@ func (w *wapcHost) hostCall(ctx context.Context, m api.Module, bindPtr, bindLen,
 // consoleLog is the WebAssembly function export "__console_log", which logs the message stored by the guest at the
 // given offset (ptr) and length (len) in linear memory (wasm.Memory).
 func (w *wapcHost) consoleLog(ctx context.Context, m api.Module, ptr, len uint32) {
-	if log := w.m.wapcHostConsoleLogger; log != nil {
+	if log := w.logger; log != nil {
 		msg := requireReadString(ctx, m.Memory(), "msg", ptr, len)
-		log(msg)
+		w.logger(msg)
 	}
 }
 
@@ -244,7 +222,7 @@ func (w *wapcHost) hostResponse(ctx context.Context, m api.Module, ptr uint32) {
 
 // hostResponse is the WebAssembly function export "__host_response_len", which returns the length of the current host
 // response from invokeContext.hostResp.
-func (w *wapcHost) hostResponseLen(ctx context.Context, m api.Module) uint32 {
+func (w *wapcHost) hostResponseLen(ctx context.Context) uint32 {
 	if ic := fromInvokeContext(ctx); ic == nil {
 		return 0 // no invoke context
 	} else if hostResp := ic.hostResp; hostResp != nil {
