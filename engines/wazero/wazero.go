@@ -28,7 +28,7 @@ const functionInit = "wapc_init"
 const functionGuestCall = "__guest_call"
 
 type (
-	engine struct{}
+	engine struct{ newRuntime NewRuntime }
 
 	// Module represents a compiled waPC module.
 	Module struct {
@@ -71,20 +71,55 @@ type (
 var _ = (wapc.Module)((*Module)(nil))
 var _ = (wapc.Instance)((*Instance)(nil))
 
-var engineInstance = engine{}
+var engineInstance = engine{newRuntime: DefaultRuntime}
 
+// Engine returns a new wapc.Engine which uses the DefaultRuntime.
 func Engine() wapc.Engine {
 	return &engineInstance
+}
+
+// NewRuntime returns a new wazero runtime which is called when the New method
+// on wapc.Engine is called. The result is closed upon wapc.Module Close.
+type NewRuntime func(context.Context) (wazero.Runtime, error)
+
+// EngineWithRuntime allows you to customize or return an alternative to
+// DefaultRuntime,
+func EngineWithRuntime(newRuntime NewRuntime) wapc.Engine {
+	return &engine{newRuntime: newRuntime}
 }
 
 func (e *engine) Name() string {
 	return "wazero"
 }
 
-// New implements the same method as documented on wapc.Engine.
-func (e *engine) New(ctx context.Context, host wapc.HostCallHandler, guest []byte, config *wapc.ModuleConfig) (mod wapc.Module, err error) {
+// DefaultRuntime implements NewRuntime by returning a wazero runtime with WASI
+// and AssemblyScript host functions instantiated.
+func DefaultRuntime(ctx context.Context) (wazero.Runtime, error) {
 	rc := wazero.NewRuntimeConfig().WithWasmCore2()
 	r := wazero.NewRuntimeWithConfig(rc)
+
+	if _, err := wasi_snapshot_preview1.Instantiate(ctx, r); err != nil {
+		_ = r.Close(ctx)
+		return nil, err
+	}
+
+	// This disables the abort message as no other engines write it.
+	envBuilder := r.NewModuleBuilder("env")
+	assemblyscript.NewFunctionExporter().WithAbortMessageDisabled().ExportFunctions(envBuilder)
+	if _, err := envBuilder.Instantiate(ctx, r); err != nil {
+		_ = r.Close(ctx)
+		return nil, err
+	}
+	return r, nil
+}
+
+// New implements the same method as documented on wapc.Engine.
+func (e *engine) New(ctx context.Context, host wapc.HostCallHandler, guest []byte, config *wapc.ModuleConfig) (mod wapc.Module, err error) {
+	r, err := e.newRuntime(ctx)
+	if err != nil {
+		return nil, err
+	}
+
 	m := &Module{runtime: r, wapcHostCallHandler: host}
 
 	m.config = wazero.NewModuleConfig().
@@ -97,19 +132,6 @@ func (e *engine) New(ctx context.Context, host wapc.HostCallHandler, guest []byt
 		m.config = m.config.WithStderr(config.Stderr)
 	}
 	mod = m
-
-	if _, err = wasi_snapshot_preview1.Instantiate(ctx, r); err != nil {
-		_ = r.Close(ctx)
-		return
-	}
-
-	// This disables the abort message as no other engines write it.
-	envBuilder := r.NewModuleBuilder("env")
-	assemblyscript.NewFunctionExporter().WithAbortMessageDisabled().ExportFunctions(envBuilder)
-	if _, err = envBuilder.Instantiate(ctx, r); err != nil {
-		_ = r.Close(ctx)
-		return
-	}
 
 	if _, err = instantiateWapcHost(ctx, r, m.wapcHostCallHandler, config.Logger); err != nil {
 		_ = r.Close(ctx)
