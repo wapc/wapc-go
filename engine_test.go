@@ -26,34 +26,35 @@ func TestGuests(t *testing.T) {
 		"go":             "go/hello.wasm",
 		"rust":           "rust/hello.wasm",
 	}
-
 	for _, engine := range engines {
 		t.Run(engine.Name(), func(t *testing.T) {
 			for l, p := range lang {
 				t.Run("Module testing with "+l+" Guest", func(t *testing.T) {
 					// Read .wasm file
-					b, err := os.ReadFile("testdata/" + p)
+					guest, err := os.ReadFile("testdata/" + p)
 					if err != nil {
 						t.Errorf("Unable to open test file - %s", err)
 					}
 
 					// Use these later
 					callbackCh := make(chan struct{}, 2)
+					host := func(context.Context, string, string, string, []byte) ([]byte, error) {
+						callbackCh <- struct{}{}
+						return []byte(""), nil
+					}
+
 					payload := []byte("Testing")
 
 					// Create new module with a callback function
-					m, err := engine.New(ctx, b, func(context.Context, string, string, string, []byte) ([]byte, error) {
-						callbackCh <- struct{}{}
-						return []byte(""), nil
+					m, err := engine.New(ctx, host, guest, &wapc.ModuleConfig{
+						Logger: wapc.PrintlnLogger,
+						Stdout: os.Stdout,
+						Stderr: os.Stderr,
 					})
 					if err != nil {
 						t.Errorf("Error creating module - %s", err)
 					}
 					defer m.Close(ctx)
-
-					// Set loggers and writers
-					m.SetLogger(wapc.Println)
-					m.SetWriter(wapc.Print)
 
 					// Instantiate Module
 					i, err := m.Instantiate(ctx)
@@ -107,8 +108,9 @@ func TestGuests(t *testing.T) {
 func TestModuleBadBytes(t *testing.T) {
 	for _, engine := range engines {
 		t.Run(engine.Name(), func(t *testing.T) {
-			b := []byte("Do not do this at home kids")
-			_, err := engine.New(ctx, b, wapc.NoOpHostCallHandler)
+			host := wapc.NoOpHostCallHandler
+			guest := []byte("Do not do this at home kids")
+			_, err := engine.New(ctx, host, guest, &wapc.ModuleConfig{})
 			if err == nil {
 				t.Errorf("Expected error when creating module with invalid wasm, got nil")
 			}
@@ -119,8 +121,9 @@ func TestModuleBadBytes(t *testing.T) {
 func TestModule(t *testing.T) {
 	for _, engine := range engines {
 		t.Run(engine.Name(), func(t *testing.T) {
+			host := wapc.NoOpHostCallHandler
 			// Read .wasm file
-			b, err := os.ReadFile("testdata/as/hello.wasm")
+			guest, err := os.ReadFile("testdata/as/hello.wasm")
 			if err != nil {
 				t.Errorf("Unable to open test file - %s", err)
 			}
@@ -129,15 +132,15 @@ func TestModule(t *testing.T) {
 			payload := []byte("Testing")
 
 			// Create new module with a NoOpCallback function
-			m, err := engine.New(ctx, b, wapc.NoOpHostCallHandler)
+			m, err := engine.New(ctx, host, guest, &wapc.ModuleConfig{
+				Logger: wapc.PrintlnLogger,
+				Stdout: os.Stdout,
+				Stderr: os.Stderr,
+			})
 			if err != nil {
 				t.Errorf("Error creating module - %s", err)
 			}
 			defer m.Close(ctx)
-
-			// Set loggers and writers
-			m.SetLogger(wapc.Println)
-			m.SetWriter(wapc.Print)
 
 			// Instantiate Module
 			i, err := m.Instantiate(ctx)

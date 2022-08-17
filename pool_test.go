@@ -21,20 +21,21 @@ func TestGuestsWithPool(t *testing.T) {
 			for l, p := range lang {
 				t.Run("Module testing with "+l+" Guest", func(t *testing.T) {
 					// Read .wasm file
-					b, err := os.ReadFile("testdata/" + p)
+					guest, err := os.ReadFile("testdata/" + p)
 					if err != nil {
 						t.Errorf("Unable to open test file - %s", err)
 					}
 
 					// Use these later
 					callbackCh := make(chan struct{}, 2)
+					host := func(context.Context, string, string, string, []byte) ([]byte, error) {
+						callbackCh <- struct{}{}
+						return []byte(""), nil
+					}
 					payload := []byte("Testing")
 
 					// Create new module with a callback function
-					m, err := engine.New(ctx, b, func(context.Context, string, string, string, []byte) ([]byte, error) {
-						callbackCh <- struct{}{}
-						return []byte(""), nil
-					})
+					m, err := engine.New(ctx, host, guest, &wapc.ModuleConfig{})
 					if err != nil {
 						t.Errorf("Error creating module - %s", err)
 					}
