@@ -96,7 +96,7 @@ func (e *engine) Name() string {
 // and AssemblyScript host functions instantiated.
 func DefaultRuntime(ctx context.Context) (wazero.Runtime, error) {
 	rc := wazero.NewRuntimeConfig().WithWasmCore2()
-	r := wazero.NewRuntimeWithConfig(rc)
+	r := wazero.NewRuntimeWithConfig(ctx, rc)
 
 	if _, err := wasi_snapshot_preview1.Instantiate(ctx, r); err != nil {
 		_ = r.Close(ctx)
