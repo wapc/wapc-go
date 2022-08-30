@@ -1,11 +1,11 @@
 module github.com/wapc/wapc-go
 
-go 1.17
+go 1.18
 
 require (
 	github.com/Workiva/go-datastructures v1.0.53
 	github.com/bytecodealliance/wasmtime-go v0.39.0
-	github.com/tetratelabs/wazero v0.0.0-20220818123113-1948909ec0b1
+	github.com/tetratelabs/wazero v1.0.0-beta.2
 	github.com/wasmerio/wasmer-go v1.0.4
 )
 

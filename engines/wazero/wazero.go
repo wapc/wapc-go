@@ -9,8 +9,8 @@ import (
 
 	"github.com/tetratelabs/wazero"
 	"github.com/tetratelabs/wazero/api"
-	"github.com/tetratelabs/wazero/assemblyscript"
-	"github.com/tetratelabs/wazero/wasi_snapshot_preview1"
+	"github.com/tetratelabs/wazero/imports/assemblyscript"
+	"github.com/tetratelabs/wazero/imports/wasi_snapshot_preview1"
 
 	"github.com/wapc/wapc-go"
 )
@@ -24,6 +24,7 @@ const functionStart = "_start"
 const functionInit = "wapc_init"
 
 // functionGuestCall is a callback required to be exported. Below is its signature in WebAssembly 1.0 (MVP) Text Format:
+//
 //	(func $__guest_call (param $operation_len i32) (param $payload_len i32) (result (;errno;) i32))
 const functionGuestCall = "__guest_call"
 
@@ -157,9 +158,9 @@ type wapcHost struct {
 }
 
 // instantiateWapcHost instantiates a wapcHost and returns it and its corresponding module, or an error.
-//	 - r: used to instantiate the waPC host module
-//	 - callHandler: used to implement hostCall
-//	 - logger: used to implement consoleLog
+//   - r: used to instantiate the waPC host module
+//   - callHandler: used to implement hostCall
+//   - logger: used to implement consoleLog
 func instantiateWapcHost(ctx context.Context, r wazero.Runtime, callHandler wapc.HostCallHandler, logger wapc.Logger) (api.Module, error) {
 	h := &wapcHost{callHandler: callHandler, logger: logger}
 	// Export host functions (in the order defined in https://wapc.io/docs/spec/#required-host-exports)
