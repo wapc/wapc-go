@@ -14,7 +14,7 @@ import (
 
 	"github.com/wasmerio/wasmer-go/wasmer"
 
-	wapc "github.com/wapc/wapc-go"
+	"github.com/wapc/wapc-go"
 )
 
 type (
