@@ -7,11 +7,20 @@ import (
 	"time"
 
 	"github.com/wapc/wapc-go"
+	"github.com/wapc/wapc-go/engines/wasmer"
+	"github.com/wapc/wapc-go/engines/wasmtime"
+	"github.com/wapc/wapc-go/engines/wazero"
 )
 
 var ctx = context.Background()
 
-func testGuests(t *testing.T, engines []wapc.Engine) {
+var engines = []wapc.Engine{
+	wasmer.Engine(),
+	wasmtime.Engine(),
+	wazero.Engine(),
+}
+
+func TestGuests(t *testing.T) {
 	lang := map[string]string{
 		"assemblyscript": "as/hello.wasm",
 		"go":             "go/hello.wasm",
@@ -96,7 +105,7 @@ func testGuests(t *testing.T, engines []wapc.Engine) {
 	}
 }
 
-func testModuleBadBytes(t *testing.T, engines []wapc.Engine) {
+func TestModuleBadBytes(t *testing.T) {
 	for _, engine := range engines {
 		t.Run(engine.Name(), func(t *testing.T) {
 			host := wapc.NoOpHostCallHandler
@@ -109,7 +118,7 @@ func testModuleBadBytes(t *testing.T, engines []wapc.Engine) {
 	}
 }
 
-func testModule(t *testing.T, engines []wapc.Engine) {
+func TestModule(t *testing.T) {
 	for _, engine := range engines {
 		t.Run(engine.Name(), func(t *testing.T) {
 			host := wapc.NoOpHostCallHandler
