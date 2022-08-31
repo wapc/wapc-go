@@ -6,8 +6,8 @@ import (
 	"os"
 	"strings"
 
-	"github.com/JanFalkin/wapc-go"
-	"github.com/JanFalkin/wapc-go/engines/wazero"
+	"github.com/wapc/wapc-go"
+	"github.com/wapc/wapc-go/engines/wazero"
 )
 
 func main() {
@@ -17,19 +17,21 @@ func main() {
 	}
 	name := os.Args[1]
 	ctx := context.Background()
-	code, err := os.ReadFile("hello/hello.wasm")
+	guest, err := os.ReadFile("hello/hello.wasm")
 	if err != nil {
 		panic(err)
 	}
 
 	engine := wazero.Engine()
 
-	module, err := engine.New(ctx, code, hostCall)
+	module, err := engine.New(ctx, host, guest, &wapc.ModuleConfig{
+		Logger: wapc.PrintlnLogger,
+		Stdout: os.Stdout,
+		Stderr: os.Stderr,
+	})
 	if err != nil {
 		panic(err)
 	}
-	module.SetLogger(wapc.Println)
-	module.SetWriter(wapc.Print)
 	defer module.Close(ctx)
 
 	instance, err := module.Instantiate(ctx)
@@ -46,7 +48,7 @@ func main() {
 	fmt.Println(string(result))
 }
 
-func hostCall(ctx context.Context, binding, namespace, operation string, payload []byte) ([]byte, error) {
+func host(_ context.Context, binding, namespace, operation string, payload []byte) ([]byte, error) {
 	// Route the payload to any custom functionality accordingly.
 	// You can even route to other waPC modules!!!
 	switch namespace {

@@ -9,9 +9,9 @@ import (
 	"sync/atomic"
 	"unsafe"
 
-	"github.com/bytecodealliance/wasmtime-go"
+	wasmtime "github.com/bytecodealliance/wasmtime-go"
 
-	wapc "github.com/JanFalkin/wapc-go"
+	wapc "github.com/wapc/wapc-go"
 )
 
 type (
@@ -19,14 +19,13 @@ type (
 
 	// Module represents a compile waPC module.
 	Module struct {
-		logger wapc.Logger // Logger to use for waPC's __console_log
-		writer wapc.Logger // Logger to use for WASI fd_write (where fd == 1 for standard out)
-
 		hostCallHandler wapc.HostCallHandler
 
 		engine *wasmtime.Engine
 		store  *wasmtime.Store
 		module *wasmtime.Module
+
+		logger wapc.Logger
 
 		// closed is atomically updated to ensure Close is only invoked once.
 		closed uint32
@@ -87,14 +86,16 @@ func (e *engine) Name() string {
 	return "wasmtime"
 }
 
-// New compiles a `Module` from `code`.
-func (e *engine) doNew(engine *wasmtime.Engine, code []byte, hostCallHandler wapc.HostCallHandler) (wapc.Module, error) {
+// New implements the same method as documented on wapc.Engine.
+func (e *engine) New(_ context.Context, host wapc.HostCallHandler, guest []byte, config *wapc.ModuleConfig) (mod wapc.Module, err error) {
+	engine := wasmtime.NewEngine()
 	store := wasmtime.NewStore(engine)
 
 	wasiConfig := wasmtime.NewWasiConfig()
+	// Note: wasmtime does not support writer-based stdout/stderr
 	store.SetWasi(wasiConfig)
 
-	module, err := wasmtime.NewModule(engine, code)
+	module, err := wasmtime.NewModule(engine, guest)
 	if err != nil {
 		return nil, err
 	}
@@ -103,29 +104,23 @@ func (e *engine) doNew(engine *wasmtime.Engine, code []byte, hostCallHandler wap
 		engine:          engine,
 		store:           store,
 		module:          module,
-		hostCallHandler: hostCallHandler,
+		logger:          config.Logger,
+		hostCallHandler: host,
 	}, nil
 }
 
 func (e *engine) NewWithDebug(code []byte, hostCallHandler wapc.HostCallHandler) (wapc.Module, error) {
 	cfg := wasmtime.NewConfig()
 	cfg.SetDebugInfo(true)
-	engine := wasmtime.NewEngineWithConfig(cfg)
-	return e.doNew(engine, code, hostCallHandler)
+	return e.New(context.Background(), hostCallHandler, code, &wapc.ModuleConfig{})
 }
 
 func (e *engine) NewWithMetering(code []byte, hostCallHandler wapc.HostCallHandler, maxInstructions uint64, pfn unsafe.Pointer) (wapc.Module, error) {
-	return e.New(context.TODO(), code, hostCallHandler)
+	return e.New(context.Background(), hostCallHandler, code, &wapc.ModuleConfig{})
 }
 
 func (i *Instance) RemainingPoints(context.Context) uint64 {
 	return 0
-}
-
-// New compiles a `Module` from `code`.
-func (e *engine) New(ctx context.Context, code []byte, hostCallHandler wapc.HostCallHandler) (wapc.Module, error) {
-	engine := wasmtime.NewEngine()
-	return e.doNew(engine, code, hostCallHandler)
 }
 
 // SetLogger sets the waPC logger for __console_log calls.
@@ -135,7 +130,7 @@ func (m *Module) SetLogger(logger wapc.Logger) {
 
 // SetWriter sets the writer for WASI fd_write calls to standard out.
 func (m *Module) SetWriter(writer wapc.Logger) {
-	m.writer = writer
+	m.logger = writer
 }
 
 // Instantiate creates a single instance of the module with its own memory.
@@ -208,7 +203,7 @@ func (i *Instance) envRuntime() map[string]*wasmtime.Func {
 		wasmtime.NewValType(wasmtime.KindI32),
 		wasmtime.NewValType(wasmtime.KindI32),
 	}
-	results := []*wasmtime.ValType{}
+	var results []*wasmtime.ValType
 
 	i.abort = wasmtime.NewFunc(
 		i.m.store,

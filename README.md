@@ -15,8 +15,8 @@ import (
 	"os"
 	"strings"
 
-	"github.com/JanFalkin/wapc-go"
-	"github.com/JanFalkin/wapc-go/engines/wazero"
+	"github.com/wapc/wapc-go"
+	"github.com/wapc/wapc-go/engines/wazero"
 )
 
 func main() {
@@ -129,8 +129,8 @@ For example, to switch the engine to wasmer, change [example/main.go](example/ma
         "strings"
 
         "github.com/wapc/wapc-go"
--       "github.com/JanFalkin/wapc-go/engines/wazero"
-+       "github.com/JanFalkin/wapc-go/engines/wasmer"
+-       "github.com/wapc/wapc-go/engines/wazero"
++       "github.com/wapc/wapc-go/engines/wasmer"
  )
 
  func main() {
