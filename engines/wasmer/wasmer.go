@@ -142,16 +142,6 @@ func (e *engine) NewWithDebug(code []byte, hostCallHandler wapc.HostCallHandler)
 	return e.New(context.TODO(), hostCallHandler, code, &wapc.ModuleConfig{})
 }
 
-// SetLogger sets the waPC logger for __console_log calls.
-func (m *Module) SetLogger(logger wapc.Logger) {
-	m.logger = logger
-}
-
-// SetWriter sets the writer for WASI fd_write calls to standard out.
-func (m *Module) SetWriter(writer wapc.Logger) {
-	m.logger = writer
-}
-
 // Instantiate creates a single instance of the module with its own memory.
 func (m *Module) Instantiate(ctx context.Context) (wapc.Instance, error) {
 	if closed := atomic.LoadUint32(&m.closed); closed != 0 {
