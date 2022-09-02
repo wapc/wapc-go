@@ -16,15 +16,17 @@ type (
 	Engine interface {
 		// Name of the engine. Ex. "wazero"
 		Name() string
-		NewWithMetering(code []byte, hostCallHandler HostCallHandler, maxInstructions uint64, pfn unsafe.Pointer) (Module, error)
-		NewWithDebug(code []byte, hostCallHandler HostCallHandler) (Module, error)
-
 		// New compiles a new WebAssembly module representing the guest, and
 		// configures the host functions it uses.
 		//   - host: implements host module functions called by the guest
 		//	 - guest: the guest WebAssembly binary (%.wasm) to compile
 		//   - config: configures the host and guest.
 		New(ctx context.Context, host HostCallHandler, guest []byte, config *ModuleConfig) (Module, error)
+	}
+
+	MeteringInfo struct {
+		MaxInstructions uint64
+		Pfn             unsafe.Pointer
 	}
 
 	// ModuleConfig includes parameters to Engine.New.
@@ -38,6 +40,10 @@ type (
 		Stdout io.Writer
 		// Stderr is the writer WASI uses for `fd_write` to file descriptor 2.
 		Stderr io.Writer
+		// Debug is a flag to indicate if a new instance is for debug wasmtime only
+		Debug bool
+		// An optional struct for metering that applies to wasmer only for now
+		Metering *MeteringInfo
 	}
 
 	// Module is a WebAssembly Module.

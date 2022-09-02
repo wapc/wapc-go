@@ -7,7 +7,6 @@ import (
 	"errors"
 	"fmt"
 	"sync/atomic"
-	"unsafe"
 
 	"github.com/bytecodealliance/wasmtime-go"
 
@@ -88,6 +87,10 @@ func (e *engine) Name() string {
 
 // New implements the same method as documented on wapc.Engine.
 func (e *engine) New(_ context.Context, host wapc.HostCallHandler, guest []byte, config *wapc.ModuleConfig) (mod wapc.Module, err error) {
+	cfg := wasmtime.NewConfig()
+	if config.Debug {
+		cfg.SetDebugInfo(true)
+	}
 	engine := wasmtime.NewEngine()
 	store := wasmtime.NewStore(engine)
 
@@ -107,16 +110,6 @@ func (e *engine) New(_ context.Context, host wapc.HostCallHandler, guest []byte,
 		logger:          config.Logger,
 		hostCallHandler: host,
 	}, nil
-}
-
-func (e *engine) NewWithDebug(code []byte, hostCallHandler wapc.HostCallHandler) (wapc.Module, error) {
-	cfg := wasmtime.NewConfig()
-	cfg.SetDebugInfo(true)
-	return e.New(context.Background(), hostCallHandler, code, &wapc.ModuleConfig{})
-}
-
-func (e *engine) NewWithMetering(code []byte, hostCallHandler wapc.HostCallHandler, maxInstructions uint64, pfn unsafe.Pointer) (wapc.Module, error) {
-	return e.New(context.Background(), hostCallHandler, code, &wapc.ModuleConfig{})
 }
 
 func (i *Instance) RemainingPoints(context.Context) uint64 {

@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"sync/atomic"
-	"unsafe"
 
 	"github.com/tetratelabs/wazero"
 	"github.com/tetratelabs/wazero/api"
@@ -91,16 +90,6 @@ func EngineWithRuntime(newRuntime NewRuntime) wapc.Engine {
 
 func (e *engine) Name() string {
 	return "wazero"
-}
-
-func (e *engine) NewWithMetering(code []byte, hostCallHandler wapc.HostCallHandler, maxInstructions uint64, pfn unsafe.Pointer) (wapc.Module, error) {
-	ctx := context.Background()
-	return e.New(ctx, hostCallHandler, code, nil)
-}
-
-func (e *engine) NewWithDebug(code []byte, hostCallHandler wapc.HostCallHandler) (wapc.Module, error) {
-	ctx := context.Background()
-	return e.New(ctx, hostCallHandler, code, nil)
 }
 
 // DefaultRuntime implements NewRuntime by returning a wazero runtime with WASI

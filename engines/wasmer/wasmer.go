@@ -10,7 +10,6 @@ import (
 	"io"
 	"sync/atomic"
 	"time"
-	"unsafe"
 
 	"github.com/wasmerio/wasmer-go/wasmer"
 
@@ -107,7 +106,18 @@ func (e *engine) Name() string {
 }
 
 // New implements the same method as documented on wapc.Engine.
-func (e *engine) doNew(_ context.Context, host wapc.HostCallHandler, guest []byte, config *wapc.ModuleConfig, engine *wasmer.Engine, store *wasmer.Store) (mod wapc.Module, err error) {
+func (e *engine) New(_ context.Context, host wapc.HostCallHandler, guest []byte, config *wapc.ModuleConfig) (mod wapc.Module, err error) {
+	var wconfig *wasmer.Config
+	var engine *wasmer.Engine
+	var store *wasmer.Store
+	if config.Metering != nil {
+		wconfig = wasmer.NewConfig().PushMeteringMiddlewarePtr(config.Metering.MaxInstructions, config.Metering.Pfn)
+		engine = wasmer.NewEngineWithConfig(wconfig)
+		store = wasmer.NewStore(engine)
+	} else {
+		engine = wasmer.NewEngine()
+		store = wasmer.NewStore(engine)
+	}
 	module, err := wasmer.NewModule(store, guest)
 	if err != nil {
 		return nil, err
@@ -122,24 +132,6 @@ func (e *engine) doNew(_ context.Context, host wapc.HostCallHandler, guest []byt
 		stderr:          config.Stderr,
 		hostCallHandler: host,
 	}, nil
-}
-
-// New compiles a `Module` from `code`.
-func (e *engine) NewWithMetering(code []byte, hostCallHandler wapc.HostCallHandler, maxInstructions uint64, pfn unsafe.Pointer) (wapc.Module, error) {
-	config := wasmer.NewConfig().PushMeteringMiddlewarePtr(maxInstructions, pfn)
-	engine := wasmer.NewEngineWithConfig(config)
-	store := wasmer.NewStore(engine)
-	return e.doNew(context.Background(), hostCallHandler, code, &wapc.ModuleConfig{}, engine, store)
-}
-
-func (e *engine) New(ctx context.Context, hostCallHandler wapc.HostCallHandler, code []byte, config *wapc.ModuleConfig) (wapc.Module, error) {
-	engine := wasmer.NewEngine()
-	store := wasmer.NewStore(engine)
-	return e.doNew(ctx, hostCallHandler, code, config, engine, store)
-}
-
-func (e *engine) NewWithDebug(code []byte, hostCallHandler wapc.HostCallHandler) (wapc.Module, error) {
-	return e.New(context.TODO(), hostCallHandler, code, &wapc.ModuleConfig{})
 }
 
 // Instantiate creates a single instance of the module with its own memory.
