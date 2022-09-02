@@ -40,10 +40,6 @@ type (
 		Stdout io.Writer
 		// Stderr is the writer WASI uses for `fd_write` to file descriptor 2.
 		Stderr io.Writer
-		// Debug is a flag to indicate if a new instance is for debug wasmtime only
-		Debug bool
-		// An optional struct for metering that applies to wasmer only for now
-		Metering *MeteringInfo
 	}
 
 	// Module is a WebAssembly Module.

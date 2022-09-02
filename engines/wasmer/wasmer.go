@@ -17,7 +17,10 @@ import (
 )
 
 type (
-	engine struct{}
+	engine struct {
+		useMetrics bool
+		mi         *wapc.MeteringInfo
+	}
 
 	// Module represents a compile waPC module.
 	Module struct {
@@ -95,10 +98,21 @@ type (
 var _ = (wapc.Module)((*Module)(nil))
 var _ = (wapc.Instance)((*Instance)(nil))
 
-var engineInstance = engine{}
+type EngineOption func(e *engine)
 
-func Engine() wapc.Engine {
-	return &engineInstance
+func Engine(opts ...EngineOption) wapc.Engine {
+	e := engine{}
+	for _, opt := range opts {
+		opt(&e)
+	}
+	return &e
+}
+
+func WithMetrics(mi *wapc.MeteringInfo) EngineOption {
+	return func(e *engine) {
+		e.useMetrics = true
+		e.mi = mi
+	}
 }
 
 func (e *engine) Name() string {
@@ -110,8 +124,8 @@ func (e *engine) New(_ context.Context, host wapc.HostCallHandler, guest []byte,
 	var wconfig *wasmer.Config
 	var engine *wasmer.Engine
 	var store *wasmer.Store
-	if config.Metering != nil {
-		wconfig = wasmer.NewConfig().PushMeteringMiddlewarePtr(config.Metering.MaxInstructions, config.Metering.Pfn)
+	if e.useMetrics {
+		wconfig = wasmer.NewConfig().PushMeteringMiddlewarePtr(e.mi.MaxInstructions, e.mi.Pfn)
 		engine = wasmer.NewEngineWithConfig(wconfig)
 		store = wasmer.NewStore(engine)
 	} else {

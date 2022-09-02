@@ -14,7 +14,9 @@ import (
 )
 
 type (
-	engine struct{}
+	engine struct {
+		isDebug bool
+	}
 
 	// Module represents a compile waPC module.
 	Module struct {
@@ -75,10 +77,19 @@ type (
 var _ = (wapc.Module)((*Module)(nil))
 var _ = (wapc.Instance)((*Instance)(nil))
 
-var engineInstance = engine{}
+type EngineOption func(e *engine)
 
-func Engine() wapc.Engine {
-	return &engineInstance
+func Engine(opts ...EngineOption) wapc.Engine {
+	e := engine{}
+	for _, opt := range opts {
+		opt(&e)
+	}
+	return &e
+}
+func WithDebug(b bool) EngineOption {
+	return func(e *engine) {
+		e.isDebug = b
+	}
 }
 
 func (e *engine) Name() string {
@@ -88,7 +99,7 @@ func (e *engine) Name() string {
 // New implements the same method as documented on wapc.Engine.
 func (e *engine) New(_ context.Context, host wapc.HostCallHandler, guest []byte, config *wapc.ModuleConfig) (mod wapc.Module, err error) {
 	cfg := wasmtime.NewConfig()
-	if config.Debug {
+	if e.isDebug {
 		cfg.SetDebugInfo(true)
 	}
 	engine := wasmtime.NewEngine()
