@@ -3,7 +3,6 @@ package wapc
 import (
 	"context"
 	"io"
-	"unsafe"
 )
 
 type (
@@ -22,11 +21,6 @@ type (
 		//	 - guest: the guest WebAssembly binary (%.wasm) to compile
 		//   - config: configures the host and guest.
 		New(ctx context.Context, host HostCallHandler, guest []byte, config *ModuleConfig) (Module, error)
-	}
-
-	MeteringInfo struct {
-		MaxInstructions uint64
-		Pfn             unsafe.Pointer
 	}
 
 	// ModuleConfig includes parameters to Engine.New.
@@ -63,7 +57,6 @@ type (
 		// Close releases resources from this instance, returning the first error encountered.
 		// Note: This should be called before calling Module.Close.
 
-		RemainingPoints(context.Context) uint64
 		Close(context.Context) error
 	}
 )

@@ -10,6 +10,7 @@ import (
 	"io"
 	"sync/atomic"
 	"time"
+	"unsafe"
 
 	"github.com/wasmerio/wasmer-go/wasmer"
 
@@ -18,8 +19,9 @@ import (
 
 type (
 	engine struct {
-		useMetrics bool
-		mi         *wapc.MeteringInfo
+		useMetrics      bool
+		maxInstructions uint64
+		pfn             unsafe.Pointer
 	}
 
 	// Module represents a compile waPC module.
@@ -108,10 +110,11 @@ func Engine(opts ...EngineOption) wapc.Engine {
 	return &e
 }
 
-func WithMetrics(mi *wapc.MeteringInfo) EngineOption {
+func WithMetrics(maxInstructions uint64, pfn unsafe.Pointer) EngineOption {
 	return func(e *engine) {
 		e.useMetrics = true
-		e.mi = mi
+		e.maxInstructions = maxInstructions
+		e.pfn = pfn
 	}
 }
 
@@ -121,16 +124,16 @@ func (e *engine) Name() string {
 
 // New implements the same method as documented on wapc.Engine.
 func (e *engine) New(_ context.Context, host wapc.HostCallHandler, guest []byte, config *wapc.ModuleConfig) (mod wapc.Module, err error) {
-	var wconfig *wasmer.Config
 	var engine *wasmer.Engine
 	var store *wasmer.Store
 	if e.useMetrics {
-		wconfig = wasmer.NewConfig().PushMeteringMiddlewarePtr(e.mi.MaxInstructions, e.mi.Pfn)
-		engine = wasmer.NewEngineWithConfig(wconfig)
-		store = wasmer.NewStore(engine)
+		store = wasmer.NewStore(
+			wasmer.NewEngineWithConfig(
+				wasmer.NewConfig().PushMeteringMiddlewarePtr(e.maxInstructions, e.pfn),
+			),
+		)
 	} else {
-		engine = wasmer.NewEngine()
-		store = wasmer.NewStore(engine)
+		store = wasmer.NewStore(wasmer.NewEngine())
 	}
 	module, err := wasmer.NewModule(store, guest)
 	if err != nil {
