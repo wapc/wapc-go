@@ -117,7 +117,10 @@ func (e *engine) New(_ context.Context, host wapc.HostCallHandler, guest []byte,
 	engine := wasmtime.NewEngineWithConfig(cfg)
 	store := wasmtime.NewStore(engine)
 	if e.useMetrics {
-		store.AddFuel(e.maxGas)
+		err := store.AddFuel(e.maxGas)
+		if err != nil {
+			return nil, err
+		}
 	}
 	wasiConfig := wasmtime.NewWasiConfig()
 	// Note: wasmtime does not support writer-based stdout/stderr
