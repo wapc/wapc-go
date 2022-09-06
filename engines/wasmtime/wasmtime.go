@@ -114,7 +114,7 @@ func (e *engine) New(_ context.Context, host wapc.HostCallHandler, guest []byte,
 	if e.useMetrics {
 		cfg.SetConsumeFuel(true)
 	}
-	engine := wasmtime.NewEngine()
+	engine := wasmtime.NewEngineWithConfig(cfg)
 	store := wasmtime.NewStore(engine)
 	if e.useMetrics {
 		store.AddFuel(e.maxGas)
