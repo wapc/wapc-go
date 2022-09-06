@@ -637,6 +637,11 @@ func (m *Module) Close(context.Context) error {
 	return nil
 }
 
-func (i *Instance) RemainingPoints(context.Context) uint64 {
-	return i.inst.GetRemainingPoints()
+func (i *Instance) RemainingPoints(context.Context) (uint64, bool) {
+	rp := i.inst.GetRemainingPoints()
+	exhausted := false
+	if rp == 0 {
+		exhausted = i.inst.MeteringPointsExhausted()
+	}
+	return rp, exhausted
 }

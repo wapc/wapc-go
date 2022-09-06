@@ -15,7 +15,9 @@ import (
 
 type (
 	engine struct {
-		isDebug bool
+		isDebug    bool
+		useMetrics bool
+		maxGas     uint64
 	}
 
 	// Module represents a compile waPC module.
@@ -92,6 +94,13 @@ func WithDebug(b bool) EngineOption {
 	}
 }
 
+func WithMetrics(maxGas uint64) EngineOption {
+	return func(e *engine) {
+		e.useMetrics = true
+		e.maxGas = maxGas
+	}
+}
+
 func (e *engine) Name() string {
 	return "wasmtime"
 }
@@ -102,9 +111,14 @@ func (e *engine) New(_ context.Context, host wapc.HostCallHandler, guest []byte,
 	if e.isDebug {
 		cfg.SetDebugInfo(true)
 	}
+	if e.useMetrics {
+		cfg.SetConsumeFuel(true)
+	}
 	engine := wasmtime.NewEngine()
 	store := wasmtime.NewStore(engine)
-
+	if e.useMetrics {
+		store.AddFuel(e.maxGas)
+	}
 	wasiConfig := wasmtime.NewWasiConfig()
 	// Note: wasmtime does not support writer-based stdout/stderr
 	store.SetWasi(wasiConfig)
@@ -123,8 +137,8 @@ func (e *engine) New(_ context.Context, host wapc.HostCallHandler, guest []byte,
 	}, nil
 }
 
-func (i *Instance) RemainingPoints(context.Context) uint64 {
-	return 0
+func (i *Instance) FuelConsumed(context.Context) (uint64, bool) {
+	return i.m.store.FuelConsumed()
 }
 
 // Instantiate creates a single instance of the module with its own memory.

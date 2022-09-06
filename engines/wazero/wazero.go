@@ -320,10 +320,6 @@ func (m *Module) Instantiate(ctx context.Context) (wapc.Instance, error) {
 	return &instance, nil
 }
 
-func (i *Instance) RemainingPoints(context.Context) uint64 {
-	return 0
-}
-
 // MemorySize implements the same method as documented on wapc.Instance.
 func (i *Instance) MemorySize(ctx context.Context) uint32 {
 	return i.m.Memory().Size(ctx)
