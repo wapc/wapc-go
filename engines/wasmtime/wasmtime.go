@@ -15,9 +15,9 @@ import (
 
 type (
 	engine struct {
-		isDebug    bool
-		useMetrics bool
-		maxGas     uint64
+		isDebug     bool
+		useMetering bool
+		maxGas      uint64
 	}
 
 	// Module represents a compile waPC module.
@@ -88,15 +88,16 @@ func Engine(opts ...EngineOption) wapc.Engine {
 	}
 	return &e
 }
+
 func WithDebug(b bool) EngineOption {
 	return func(e *engine) {
 		e.isDebug = b
 	}
 }
 
-func WithMetrics(maxGas uint64) EngineOption {
+func WithMetering(maxGas uint64) EngineOption {
 	return func(e *engine) {
-		e.useMetrics = true
+		e.useMetering = true
 		e.maxGas = maxGas
 	}
 }
@@ -111,12 +112,12 @@ func (e *engine) New(_ context.Context, host wapc.HostCallHandler, guest []byte,
 	if e.isDebug {
 		cfg.SetDebugInfo(true)
 	}
-	if e.useMetrics {
+	if e.useMetering {
 		cfg.SetConsumeFuel(true)
 	}
 	engine := wasmtime.NewEngineWithConfig(cfg)
 	store := wasmtime.NewStore(engine)
-	if e.useMetrics {
+	if e.useMetering {
 		err := store.AddFuel(e.maxGas)
 		if err != nil {
 			return nil, err
@@ -140,6 +141,7 @@ func (e *engine) New(_ context.Context, host wapc.HostCallHandler, guest []byte,
 	}, nil
 }
 
+// FuelConsumed returns the amount of fuel consumed in the underlying store or false if fuel consumption was not configured.
 func (i *Instance) FuelConsumed(context.Context) (uint64, bool) {
 	return i.m.store.FuelConsumed()
 }

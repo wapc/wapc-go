@@ -19,7 +19,7 @@ import (
 
 type (
 	engine struct {
-		useMetrics      bool
+		useMetering     bool
 		maxInstructions uint64
 		pfn             unsafe.Pointer
 	}
@@ -110,9 +110,9 @@ func Engine(opts ...EngineOption) wapc.Engine {
 	return &e
 }
 
-func WithMetrics(maxInstructions uint64, pfn unsafe.Pointer) EngineOption {
+func WithMetering(maxInstructions uint64, pfn unsafe.Pointer) EngineOption {
 	return func(e *engine) {
-		e.useMetrics = true
+		e.useMetering = true
 		e.maxInstructions = maxInstructions
 		e.pfn = pfn
 	}
@@ -126,7 +126,7 @@ func (e *engine) Name() string {
 func (e *engine) New(_ context.Context, host wapc.HostCallHandler, guest []byte, config *wapc.ModuleConfig) (mod wapc.Module, err error) {
 	var engine *wasmer.Engine
 	var store *wasmer.Store
-	if e.useMetrics {
+	if e.useMetering {
 		store = wasmer.NewStore(
 			wasmer.NewEngineWithConfig(
 				wasmer.NewConfig().PushMeteringMiddlewarePtr(e.maxInstructions, e.pfn),
@@ -637,6 +637,7 @@ func (m *Module) Close(context.Context) error {
 	return nil
 }
 
+// RemainingPoints returns the amount of points remaining or false if exhausted/terminated .
 func (i *Instance) RemainingPoints(context.Context) (uint64, bool) {
 	rp := i.inst.GetRemainingPoints()
 	exhausted := false
