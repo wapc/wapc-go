@@ -89,12 +89,44 @@ func Engine(opts ...EngineOption) wapc.Engine {
 	return &e
 }
 
+// WithDebug enables wasmtime's dwarf debugging capabilities for this engine option
+//
+// example:
+//   import (
+//     "context"
+//     "flag"
+//     "unsafe"
+//     "github.com/wapc/wapc-go/engines/wasmtime"
+//   )
+//
+//   func main{
+//      dbgPtr := flag.Bool("debug", false, "debug flag")
+//      flag.Parse()
+//      config := &wapc.ModuleConfig{}
+//      engOptDebug := wasmtime.WithDebug(*dbgPtr)
+//      engine := wasmtime.Engine(engOptDebug).New(context.TODO(), cb, b, config)
+//   }
 func WithDebug(b bool) EngineOption {
 	return func(e *engine) {
 		e.isDebug = b
 	}
 }
 
+// WithMetering enables wasmtime's metering for this engine option
+//
+// example:
+//   import (
+//     "context"
+//     "unsafe"
+//     "github.com/wapc/wapc-go/engines/wasmtime"
+//   )
+//
+//   func main{
+//      flag.Parse()
+//      config := &wapc.ModuleConfig{}
+//      engOpt := wasmtime.WithMetering(uint64(500000))
+//      engine := wasmtime.Engine(engOpt).New(context.TODO(), cb, b, config)
+//   }
 func WithMetering(maxFuel uint64) EngineOption {
 	return func(e *engine) {
 		e.useMetering = true

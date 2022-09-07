@@ -110,6 +110,37 @@ func Engine(opts ...EngineOption) wapc.Engine {
 	return &e
 }
 
+// WithMetering enables wasmer's middleware metering for this engine option
+//
+// example:
+//   //#include "wasmer.h"
+//   __attribute__((weak))
+//   extern uint64_t meteringFn(enum wasmer_parser_operator_t op);
+//   import "C"
+//   import (
+//     "context"
+//     "unsafe"
+//     "github.com/wapc/wapc-go/engines/wasmer"
+//   )
+//
+//
+//   func getInternalCPointer() unsafe.Pointer {
+//     return unsafe.Pointer(C.meteringFn)
+//   }
+//
+//   //export meteringFn
+//   func meteringFn(op C.wasmer_parser_operator_t) C.uint64_t {
+//     if op >= C.wasmer_parser_operator_t(30) && op <= C.wasmer_parser_operator_t(197) {
+//        return 1
+//     }
+//     return 0
+//   }
+//
+//   func main{
+//      config := &wapc.ModuleConfig{}
+//      engOpt := wasmer.WithMetering(uint64(gas), getInternalCPointer())
+//      engine := wasmer.Engine(engOpt).New(context.TODO(), cb, b, config)
+//   }
 func WithMetering(maxInstructions uint64, pfn unsafe.Pointer) EngineOption {
 	return func(e *engine) {
 		e.useMetering = true
