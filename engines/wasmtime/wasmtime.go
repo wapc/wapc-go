@@ -96,6 +96,7 @@ func Engine(opts ...EngineOption) wapc.Engine {
 //     "context"
 //     "flag"
 //     "unsafe"
+//     wapc "github.com/wapc/wapc-go"
 //     "github.com/wapc/wapc-go/engines/wasmtime"
 //   )
 //
@@ -118,6 +119,7 @@ func WithDebug(b bool) EngineOption {
 //   import (
 //     "context"
 //     "unsafe"
+//     wapc "github.com/wapc/wapc-go"
 //     "github.com/wapc/wapc-go/engines/wasmtime"
 //   )
 //

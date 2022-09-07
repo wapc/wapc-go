@@ -120,6 +120,7 @@ func Engine(opts ...EngineOption) wapc.Engine {
 //   import (
 //     "context"
 //     "unsafe"
+//     wapc "github.com/wapc/wapc-go"
 //     "github.com/wapc/wapc-go/engines/wasmer"
 //   )
 //
