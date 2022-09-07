@@ -131,7 +131,7 @@ func Engine(opts ...EngineOption) wapc.Engine {
 //
 //   //export meteringFn
 //   func meteringFn(op C.wasmer_parser_operator_t) C.uint64_t {
-//     if op >= C.wasmer_parser_operator_t(30) && op <= C.wasmer_parser_operator_t(197) {
+//     if op >= C.I32Load && op <= C.I64TruncSatF64U {
 //        return 1
 //     }
 //     return 0
