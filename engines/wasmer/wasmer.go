@@ -114,8 +114,8 @@ func Engine(opts ...EngineOption) wapc.Engine {
 //
 // example:
 //   //#include "wasmer.h"
-//   __attribute__((weak))
-//   extern uint64_t meteringFn(enum wasmer_parser_operator_t op);
+//   //__attribute__((weak))
+//   //extern uint64_t meteringFn(enum wasmer_parser_operator_t op);
 //   import "C"
 //   import (
 //     "context"
