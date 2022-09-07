@@ -17,7 +17,7 @@ type (
 	engine struct {
 		isDebug     bool
 		useMetering bool
-		maxGas      uint64
+		maxFuel     uint64
 	}
 
 	// Module represents a compile waPC module.
@@ -95,10 +95,10 @@ func WithDebug(b bool) EngineOption {
 	}
 }
 
-func WithMetering(maxGas uint64) EngineOption {
+func WithMetering(maxFuel uint64) EngineOption {
 	return func(e *engine) {
 		e.useMetering = true
-		e.maxGas = maxGas
+		e.maxFuel = maxFuel
 	}
 }
 
@@ -118,7 +118,7 @@ func (e *engine) New(_ context.Context, host wapc.HostCallHandler, guest []byte,
 	engine := wasmtime.NewEngineWithConfig(cfg)
 	store := wasmtime.NewStore(engine)
 	if e.useMetering {
-		err := store.AddFuel(e.maxGas)
+		err := store.AddFuel(e.maxFuel)
 		if err != nil {
 			return nil, err
 		}
