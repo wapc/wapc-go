@@ -17,7 +17,9 @@ import (
 )
 
 type (
-	engine struct{}
+	engine struct {
+		engineFn func() *wasmer.Engine
+	}
 
 	// Module represents a compile waPC module.
 	Module struct {
@@ -95,10 +97,23 @@ type (
 var _ = (wapc.Module)((*Module)(nil))
 var _ = (wapc.Instance)((*Instance)(nil))
 
-var engineInstance = engine{}
+// EngineOption is a wasmer-specific configuration, applied via Engine
+type EngineOption func(e *engine)
 
-func Engine() wapc.Engine {
-	return &engineInstance
+// WithEngine allows you to override the default engine. Defaults to
+// `wasmer.NewEngine`.
+func WithEngine(engineFn func() *wasmer.Engine) EngineOption {
+	return func(e *engine) {
+		e.engineFn = engineFn
+	}
+}
+
+func Engine(opts ...EngineOption) wapc.Engine {
+	e := engine{engineFn: wasmer.NewEngine}
+	for _, opt := range opts {
+		opt(&e)
+	}
+	return &e
 }
 
 func (e *engine) Name() string {
@@ -107,8 +122,11 @@ func (e *engine) Name() string {
 
 // New implements the same method as documented on wapc.Engine.
 func (e *engine) New(_ context.Context, host wapc.HostCallHandler, guest []byte, config *wapc.ModuleConfig) (mod wapc.Module, err error) {
-	engine := wasmer.NewEngine()
-	store := wasmer.NewStore(engine)
+	wasmerEngine := e.engineFn()
+	if wasmerEngine == nil {
+		return nil, errors.New("function set by WithEngine returned nil")
+	}
+	store := wasmer.NewStore(wasmerEngine)
 
 	module, err := wasmer.NewModule(store, guest)
 	if err != nil {
@@ -116,7 +134,7 @@ func (e *engine) New(_ context.Context, host wapc.HostCallHandler, guest []byte,
 	}
 
 	return &Module{
-		engine:          engine,
+		engine:          wasmerEngine,
 		store:           store,
 		module:          module,
 		logger:          config.Logger,
@@ -124,6 +142,11 @@ func (e *engine) New(_ context.Context, host wapc.HostCallHandler, guest []byte,
 		stderr:          config.Stderr,
 		hostCallHandler: host,
 	}, nil
+}
+
+// Unwrap allows access to wasmer-specific features.
+func (m *Module) Unwrap() *wasmer.Module {
+	return m.module
 }
 
 // Instantiate creates a single instance of the module with its own memory.
@@ -176,6 +199,11 @@ func (m *Module) Instantiate(ctx context.Context) (wapc.Instance, error) {
 	}
 
 	return &instance, nil
+}
+
+// Unwrap allows access to wasmer-specific features.
+func (i *Instance) Unwrap() *wasmer.Instance {
+	return i.inst
 }
 
 func (i *Instance) envRuntime() map[string]wasmer.IntoExtern {
