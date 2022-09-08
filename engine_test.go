@@ -8,15 +8,27 @@ import (
 
 	"github.com/wapc/wapc-go"
 	"github.com/wapc/wapc-go/engines/wasmer"
+	we "github.com/wasmerio/wasmer-go/wasmer"
+
+	wt "github.com/bytecodealliance/wasmtime-go"
 	"github.com/wapc/wapc-go/engines/wasmtime"
 	"github.com/wapc/wapc-go/engines/wazero"
 )
 
 var ctx = context.Background()
+var defaultParam int
+
+func defaultWasmerEng(interface{}) *we.Engine {
+	return we.NewEngine()
+}
+
+func defaultWasmtimeEng(interface{}) *wt.Engine {
+	return wt.NewEngine()
+}
 
 var engines = []wapc.Engine{
-	wasmer.Engine(),
-	wasmtime.Engine(),
+	wasmer.Engine(wasmer.WithEngine(defaultWasmerEng, defaultParam)),
+	wasmtime.Engine(wasmtime.WithEngine(defaultWasmtimeEng, defaultParam)),
 	wazero.Engine(),
 }
 
