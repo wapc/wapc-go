@@ -15,9 +15,8 @@ import (
 
 type (
 	engine struct {
-		isDebug     bool
-		useMetering bool
-		maxFuel     uint64
+		engineFn func(interface{}) *wasmtime.Engine
+		i        interface{}
 	}
 
 	// Module represents a compile waPC module.
@@ -81,59 +80,25 @@ var _ = (wapc.Instance)((*Instance)(nil))
 
 type EngineOption func(e *engine)
 
+// WithEngine allows you to override the default engine. Defaults to
+// `wasmer.NewEngine`.
+func WithEngine(engineFn func(interface{}) *wasmtime.Engine, i interface{}) EngineOption {
+	return func(e *engine) {
+		e.engineFn = engineFn
+		e.i = i
+	}
+}
+
+func defaultWasmtimeEng(interface{}) *wasmtime.Engine {
+	return wasmtime.NewEngine()
+}
+
 func Engine(opts ...EngineOption) wapc.Engine {
-	e := engine{}
+	e := engine{engineFn: defaultWasmtimeEng}
 	for _, opt := range opts {
 		opt(&e)
 	}
 	return &e
-}
-
-// WithDebug enables wasmtime's dwarf debugging capabilities for this engine option
-//
-// example:
-//   import (
-//     "context"
-//     "flag"
-//     "unsafe"
-//     wapc "github.com/wapc/wapc-go"
-//     "github.com/wapc/wapc-go/engines/wasmtime"
-//   )
-//
-//   func main{
-//      dbgPtr := flag.Bool("debug", false, "debug flag")
-//      flag.Parse()
-//      config := &wapc.ModuleConfig{}
-//      engOptDebug := wasmtime.WithDebug(*dbgPtr)
-//      engine := wasmtime.Engine(engOptDebug).New(context.TODO(), cb, b, config)
-//   }
-func WithDebug(b bool) EngineOption {
-	return func(e *engine) {
-		e.isDebug = b
-	}
-}
-
-// WithMetering enables wasmtime's metering for this engine option
-//
-// example:
-//   import (
-//     "context"
-//     "unsafe"
-//     wapc "github.com/wapc/wapc-go"
-//     "github.com/wapc/wapc-go/engines/wasmtime"
-//   )
-//
-//   func main{
-//      flag.Parse()
-//      config := &wapc.ModuleConfig{}
-//      engOpt := wasmtime.WithMetering(uint64(500000))
-//      engine := wasmtime.Engine(engOpt).New(context.TODO(), cb, b, config)
-//   }
-func WithMetering(maxFuel uint64) EngineOption {
-	return func(e *engine) {
-		e.useMetering = true
-		e.maxFuel = maxFuel
-	}
 }
 
 func (e *engine) Name() string {
@@ -142,21 +107,11 @@ func (e *engine) Name() string {
 
 // New implements the same method as documented on wapc.Engine.
 func (e *engine) New(_ context.Context, host wapc.HostCallHandler, guest []byte, config *wapc.ModuleConfig) (mod wapc.Module, err error) {
-	cfg := wasmtime.NewConfig()
-	if e.isDebug {
-		cfg.SetDebugInfo(true)
+	engine := e.engineFn(e.i)
+	if engine == nil {
+		return nil, errors.New("function set by WithEngine returned nil")
 	}
-	if e.useMetering {
-		cfg.SetConsumeFuel(true)
-	}
-	engine := wasmtime.NewEngineWithConfig(cfg)
 	store := wasmtime.NewStore(engine)
-	if e.useMetering {
-		err := store.AddFuel(e.maxFuel)
-		if err != nil {
-			return nil, err
-		}
-	}
 	wasiConfig := wasmtime.NewWasiConfig()
 	// Note: wasmtime does not support writer-based stdout/stderr
 	store.SetWasi(wasiConfig)
