@@ -10,7 +10,6 @@ import (
 	"io"
 	"sync/atomic"
 	"time"
-	"unsafe"
 
 	"github.com/wasmerio/wasmer-go/wasmer"
 
@@ -19,9 +18,7 @@ import (
 
 type (
 	engine struct {
-		useMetering     bool
-		maxInstructions uint64
-		pfn             unsafe.Pointer
+		engineFn func() *wasmer.Engine
 	}
 
 	// Module represents a compile waPC module.
@@ -100,54 +97,23 @@ type (
 var _ = (wapc.Module)((*Module)(nil))
 var _ = (wapc.Instance)((*Instance)(nil))
 
+// EngineOption is a wasmer-specific configuration, applied via Engine
 type EngineOption func(e *engine)
 
+// WithEngine allows you to override the default engine. Defaults to
+// `wasmer.NewEngine`.
+func WithEngine(engineFn func() *wasmer.Engine) EngineOption {
+	return func(e *engine) {
+		e.engineFn = engineFn
+	}
+}
+
 func Engine(opts ...EngineOption) wapc.Engine {
-	e := engine{}
+	e := engine{engineFn: wasmer.NewEngine}
 	for _, opt := range opts {
 		opt(&e)
 	}
 	return &e
-}
-
-// WithMetering enables wasmer's middleware metering for this engine option
-//
-// example:
-//   //#include "wasmer.h"
-//   //__attribute__((weak))
-//   //extern uint64_t meteringFn(enum wasmer_parser_operator_t op);
-//   import "C"
-//   import (
-//     "context"
-//     "unsafe"
-//     wapc "github.com/wapc/wapc-go"
-//     "github.com/wapc/wapc-go/engines/wasmer"
-//   )
-//
-//
-//   func getInternalCPointer() unsafe.Pointer {
-//     return unsafe.Pointer(C.meteringFn)
-//   }
-//
-//   //export meteringFn
-//   func meteringFn(op C.wasmer_parser_operator_t) C.uint64_t {
-//     if op >= C.I32Load && op <= C.I64TruncSatF64U {
-//        return 1
-//     }
-//     return 0
-//   }
-//
-//   func main{
-//      config := &wapc.ModuleConfig{}
-//      engOpt := wasmer.WithMetering(uint64(gas), getInternalCPointer())
-//      engine := wasmer.Engine(engOpt).New(context.TODO(), cb, b, config)
-//   }
-func WithMetering(maxInstructions uint64, pfn unsafe.Pointer) EngineOption {
-	return func(e *engine) {
-		e.useMetering = true
-		e.maxInstructions = maxInstructions
-		e.pfn = pfn
-	}
 }
 
 func (e *engine) Name() string {
@@ -156,24 +122,19 @@ func (e *engine) Name() string {
 
 // New implements the same method as documented on wapc.Engine.
 func (e *engine) New(_ context.Context, host wapc.HostCallHandler, guest []byte, config *wapc.ModuleConfig) (mod wapc.Module, err error) {
-	var engine *wasmer.Engine
-	var store *wasmer.Store
-	if e.useMetering {
-		store = wasmer.NewStore(
-			wasmer.NewEngineWithConfig(
-				wasmer.NewConfig().PushMeteringMiddlewarePtr(e.maxInstructions, e.pfn),
-			),
-		)
-	} else {
-		store = wasmer.NewStore(wasmer.NewEngine())
+	wasmerEngine := e.engineFn()
+	if wasmerEngine == nil {
+		return nil, errors.New("function set by WithEngine returned nil")
 	}
+	store := wasmer.NewStore(wasmerEngine)
+
 	module, err := wasmer.NewModule(store, guest)
 	if err != nil {
 		return nil, err
 	}
 
 	return &Module{
-		engine:          engine,
+		engine:          wasmerEngine,
 		store:           store,
 		module:          module,
 		logger:          config.Logger,
@@ -181,6 +142,11 @@ func (e *engine) New(_ context.Context, host wapc.HostCallHandler, guest []byte,
 		stderr:          config.Stderr,
 		hostCallHandler: host,
 	}, nil
+}
+
+// Unwrap allows access to wasmer-specific features.
+func (m *Module) Unwrap() *wasmer.Module {
+	return m.module
 }
 
 // Instantiate creates a single instance of the module with its own memory.
@@ -233,6 +199,11 @@ func (m *Module) Instantiate(ctx context.Context) (wapc.Instance, error) {
 	}
 
 	return &instance, nil
+}
+
+// Unwrap allows access to wasmer-specific features.
+func (i *Instance) Unwrap() *wasmer.Instance {
+	return i.inst
 }
 
 func (i *Instance) envRuntime() map[string]wasmer.IntoExtern {
