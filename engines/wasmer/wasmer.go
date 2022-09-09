@@ -639,13 +639,3 @@ func (m *Module) Close(context.Context) error {
 	m.engine = nil
 	return nil
 }
-
-// RemainingPoints returns the amount of points remaining or false if exhausted/terminated .
-func (i *Instance) RemainingPoints(context.Context) (uint64, bool) {
-	rp := i.inst.GetRemainingPoints()
-	exhausted := false
-	if rp == 0 {
-		exhausted = i.inst.MeteringPointsExhausted()
-	}
-	return rp, exhausted
-}
