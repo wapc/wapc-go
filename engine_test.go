@@ -16,19 +16,10 @@ import (
 )
 
 var ctx = context.Background()
-var defaultParam int
-
-func defaultWasmerEng(interface{}) *we.Engine {
-	return we.NewEngine()
-}
-
-func defaultWasmtimeEng(interface{}) *wt.Engine {
-	return wt.NewEngine()
-}
 
 var engines = []wapc.Engine{
-	wasmer.Engine(wasmer.WithEngine(defaultWasmerEng, defaultParam)),
-	wasmtime.Engine(wasmtime.WithEngine(defaultWasmtimeEng, defaultParam)),
+	wasmer.Engine(wasmer.WithEngine(we.NewEngine)),
+	wasmtime.Engine(wasmtime.WithEngine(wt.NewEngine)),
 	wazero.Engine(),
 }
 

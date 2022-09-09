@@ -15,8 +15,7 @@ import (
 
 type (
 	engine struct {
-		engineFn func(interface{}) *wasmtime.Engine
-		i        interface{}
+		engineFn func() *wasmtime.Engine
 	}
 
 	// Module represents a compile waPC module.
@@ -82,19 +81,14 @@ type EngineOption func(e *engine)
 
 // WithEngine allows you to override the default engine. Defaults to
 // `wasmer.NewEngine`.
-func WithEngine(engineFn func(interface{}) *wasmtime.Engine, i interface{}) EngineOption {
+func WithEngine(engineFn func() *wasmtime.Engine) EngineOption {
 	return func(e *engine) {
 		e.engineFn = engineFn
-		e.i = i
 	}
 }
 
-func defaultWasmtimeEng(interface{}) *wasmtime.Engine {
-	return wasmtime.NewEngine()
-}
-
 func Engine(opts ...EngineOption) wapc.Engine {
-	e := engine{engineFn: defaultWasmtimeEng}
+	e := engine{engineFn: wasmtime.NewEngine}
 	for _, opt := range opts {
 		opt(&e)
 	}
@@ -107,7 +101,7 @@ func (e *engine) Name() string {
 
 // New implements the same method as documented on wapc.Engine.
 func (e *engine) New(_ context.Context, host wapc.HostCallHandler, guest []byte, config *wapc.ModuleConfig) (mod wapc.Module, err error) {
-	engine := e.engineFn(e.i)
+	engine := e.engineFn()
 	if engine == nil {
 		return nil, errors.New("function set by WithEngine returned nil")
 	}
@@ -468,6 +462,11 @@ func (i *Instance) Invoke(ctx context.Context, operation string, payload []byte)
 	return nil, fmt.Errorf("call to %q was unsuccessful", operation)
 }
 
+// Unwrap allows access to wasmer-specific features.
+func (i *Instance) Unwrap() *wasmtime.Instance {
+	return i.inst
+}
+
 // Close closes the single instance.  This should be called before calling `Close` on the Module itself.
 func (i *Instance) Close(context.Context) error {
 	if !atomic.CompareAndSwapUint32(&i.closed, 0, 1) {
@@ -489,6 +488,11 @@ func (i *Instance) Close(context.Context) error {
 	i.consoleLog = nil
 	i.abort = nil
 	return nil // wasmtime only closes via finalizer
+}
+
+// Unwrap allows access to wasmer-specific features.
+func (m *Module) Unwrap() *wasmtime.Module {
+	return m.module
 }
 
 // Close closes the module.  This should be called after calling `Close` on any instances that were created.

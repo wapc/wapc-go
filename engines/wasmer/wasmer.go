@@ -18,8 +18,7 @@ import (
 
 type (
 	engine struct {
-		engineFn func(interface{}) *wasmer.Engine
-		i        interface{}
+		engineFn func() *wasmer.Engine
 	}
 
 	// Module represents a compile waPC module.
@@ -103,19 +102,14 @@ type EngineOption func(e *engine)
 
 // WithEngine allows you to override the default engine. Defaults to
 // `wasmer.NewEngine`.
-func WithEngine(engineFn func(interface{}) *wasmer.Engine, i interface{}) EngineOption {
+func WithEngine(engineFn func() *wasmer.Engine) EngineOption {
 	return func(e *engine) {
 		e.engineFn = engineFn
-		e.i = i
 	}
 }
 
-func defaultWasmerEng(interface{}) *wasmer.Engine {
-	return wasmer.NewEngine()
-}
-
 func Engine(opts ...EngineOption) wapc.Engine {
-	e := engine{engineFn: defaultWasmerEng}
+	e := engine{engineFn: wasmer.NewEngine}
 	for _, opt := range opts {
 		opt(&e)
 	}
@@ -128,7 +122,7 @@ func (e *engine) Name() string {
 
 // New implements the same method as documented on wapc.Engine.
 func (e *engine) New(_ context.Context, host wapc.HostCallHandler, guest []byte, config *wapc.ModuleConfig) (mod wapc.Module, err error) {
-	wasmerEngine := e.engineFn(e.i)
+	wasmerEngine := e.engineFn()
 	if wasmerEngine == nil {
 		return nil, errors.New("function set by WithEngine returned nil")
 	}

@@ -1,10 +1,10 @@
-package wasmer
+package wasmtime
 
 import (
 	"context"
 	"log"
 
-	"github.com/wasmerio/wasmer-go/wasmer"
+	"github.com/bytecodealliance/wasmtime-go"
 
 	"github.com/wapc/wapc-go"
 )
@@ -15,8 +15,12 @@ func Example_custom() {
 	ctx := context.Background()
 
 	// Configure waPC to use a specific wasmer feature.
-	e := Engine(WithEngine(func() *wasmer.Engine {
-		return wasmer.NewEngineWithConfig(wasmer.NewConfig().UseDylibEngine())
+	e := Engine(WithEngine(func() *wasmtime.Engine {
+		return wasmtime.NewEngineWithConfig(func() *wasmtime.Config {
+			cfg := wasmtime.NewConfig()
+			cfg.SetWasmMemory64(true)
+			return cfg
+		}())
 	}))
 
 	// Instantiate a module normally.
