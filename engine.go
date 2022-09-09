@@ -15,6 +15,7 @@ type (
 	Engine interface {
 		// Name of the engine. Ex. "wazero"
 		Name() string
+
 		// New compiles a new WebAssembly module representing the guest, and
 		// configures the host functions it uses.
 		//   - host: implements host module functions called by the guest
@@ -56,7 +57,6 @@ type (
 
 		// Close releases resources from this instance, returning the first error encountered.
 		// Note: This should be called before calling Module.Close.
-
 		Close(context.Context) error
 	}
 )
