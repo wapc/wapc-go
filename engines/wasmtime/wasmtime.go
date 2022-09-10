@@ -124,11 +124,6 @@ func (e *engine) New(_ context.Context, host wapc.HostCallHandler, guest []byte,
 	}, nil
 }
 
-// FuelConsumed returns the amount of fuel consumed in the underlying store or false if fuel consumption was not configured.
-func (i *Instance) FuelConsumed(context.Context) (uint64, bool) {
-	return i.m.store.FuelConsumed()
-}
-
 // Instantiate creates a single instance of the module with its own memory.
 func (m *Module) Instantiate(ctx context.Context) (wapc.Instance, error) {
 	if closed := atomic.LoadUint32(&m.closed); closed != 0 {
@@ -462,9 +457,14 @@ func (i *Instance) Invoke(ctx context.Context, operation string, payload []byte)
 	return nil, fmt.Errorf("call to %q was unsuccessful", operation)
 }
 
-// Unwrap allows access to wasmer-specific features.
+// Unwrap allows access to wasmtime-specific features.
 func (i *Instance) Unwrap() *wasmtime.Instance {
 	return i.inst
+}
+
+// UnwrapStore allows access to wasmtime-specific features.
+func (i *Instance) UnwrapStore() *wasmtime.Store {
+	return i.m.store
 }
 
 // Close closes the single instance.  This should be called before calling `Close` on the Module itself.
@@ -490,9 +490,14 @@ func (i *Instance) Close(context.Context) error {
 	return nil // wasmtime only closes via finalizer
 }
 
-// Unwrap allows access to wasmer-specific features.
+// Unwrap allows access to wasmtime-specific features.
 func (m *Module) Unwrap() *wasmtime.Module {
 	return m.module
+}
+
+// UnwrapStore allows access to wasmtime-specific features.
+func (m *Module) UnwrapStore() *wasmtime.Store {
+	return m.store
 }
 
 // Close closes the module.  This should be called after calling `Close` on any instances that were created.

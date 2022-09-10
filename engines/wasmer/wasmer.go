@@ -149,6 +149,11 @@ func (m *Module) Unwrap() *wasmer.Module {
 	return m.module
 }
 
+// UnwrapStore allows access to wasmer-specific features.
+func (m *Module) UnwrapStore() *wasmer.Store {
+	return m.store
+}
+
 // Instantiate creates a single instance of the module with its own memory.
 func (m *Module) Instantiate(ctx context.Context) (wapc.Instance, error) {
 	if closed := atomic.LoadUint32(&m.closed); closed != 0 {
@@ -204,6 +209,11 @@ func (m *Module) Instantiate(ctx context.Context) (wapc.Instance, error) {
 // Unwrap allows access to wasmer-specific features.
 func (i *Instance) Unwrap() *wasmer.Instance {
 	return i.inst
+}
+
+// Unwrap allows access to wasmer-specific features.
+func (i *Instance) UnwrapStore() *wasmer.Store {
+	return i.m.store
 }
 
 func (i *Instance) envRuntime() map[string]wasmer.IntoExtern {
