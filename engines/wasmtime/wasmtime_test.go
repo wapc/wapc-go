@@ -35,7 +35,7 @@ func TestEngine_WithEngine(t *testing.T) {
 	t.Run("ok", func(t *testing.T) {
 		expected := wasmtime.NewEngine()
 
-		e := Engine(WithEngine(func() *wasmtime.Engine { return expected }))
+		e := Engine(WithEngine(expected))
 
 		m, err := e.New(testCtx, wapc.NoOpHostCallHandler, guest, mc)
 		if err != nil {
@@ -47,10 +47,9 @@ func TestEngine_WithEngine(t *testing.T) {
 			t.Errorf("Unexpected engine, have %v, expected %v", have, expected)
 		}
 	})
-
 	t.Run("nil not ok", func(t *testing.T) {
 		expectedErr := "function set by WithEngine returned nil"
-		e := Engine(WithEngine(func() *wasmtime.Engine { return nil }))
+		e := Engine(WithEngine(nil))
 
 		if _, err := e.New(testCtx, wapc.NoOpHostCallHandler, guest, mc); err.Error() != expectedErr {
 			t.Errorf("Unexpected error, have %v, expected %v", err, expectedErr)

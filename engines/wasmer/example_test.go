@@ -15,9 +15,7 @@ func Example_custom() {
 	ctx := context.Background()
 
 	// Configure waPC to use a specific wasmer feature.
-	e := Engine(WithEngine(func() *wasmer.Engine {
-		return wasmer.NewEngineWithConfig(wasmer.NewConfig().UseDylibEngine())
-	}))
+	e := Engine(WithEngine(wasmer.NewEngineWithConfig(wasmer.NewConfig().UseDylibEngine())))
 
 	// Instantiate a module normally.
 	m, err := e.New(ctx, wapc.NoOpHostCallHandler, guest, mc)

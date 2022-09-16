@@ -18,7 +18,7 @@ import (
 
 type (
 	engine struct {
-		engineFn func() *wasmer.Engine
+		engPtr *wasmer.Engine
 	}
 
 	// Module represents a compile waPC module.
@@ -102,31 +102,30 @@ type EngineOption func(e *engine)
 
 // WithEngine allows you to override the default engine. Defaults to
 // `wasmer.NewEngine`.
-func WithEngine(engineFn func() *wasmer.Engine) EngineOption {
-	return func(e *engine) {
-		e.engineFn = engineFn
-	}
+func WithEngine(engine *wasmer.Engine) *wasmer.Engine {
+	return engine
 }
 
-func Engine(opts ...EngineOption) wapc.Engine {
-	e := engine{engineFn: wasmer.NewEngine}
-	for _, opt := range opts {
-		opt(&e)
+func Engine(engs ...*wasmer.Engine) wapc.Engine {
+	var e engine
+	if len(engs) > 0 {
+		e = engine{engPtr: engs[0]}
+	} else {
+		e = engine{engPtr: wasmer.NewEngine()}
 	}
 	return &e
 }
-
 func (e *engine) Name() string {
 	return "wasmer"
 }
 
 // New implements the same method as documented on wapc.Engine.
 func (e *engine) New(_ context.Context, host wapc.HostCallHandler, guest []byte, config *wapc.ModuleConfig) (mod wapc.Module, err error) {
-	wasmerEngine := e.engineFn()
-	if wasmerEngine == nil {
+	wasmerEngine := e
+	if wasmerEngine.engPtr == nil {
 		return nil, errors.New("function set by WithEngine returned nil")
 	}
-	store := wasmer.NewStore(wasmerEngine)
+	store := wasmer.NewStore(wasmerEngine.engPtr)
 
 	module, err := wasmer.NewModule(store, guest)
 	if err != nil {
@@ -134,7 +133,7 @@ func (e *engine) New(_ context.Context, host wapc.HostCallHandler, guest []byte,
 	}
 
 	return &Module{
-		engine:          wasmerEngine,
+		engine:          wasmerEngine.engPtr,
 		store:           store,
 		module:          module,
 		logger:          config.Logger,

@@ -13,15 +13,10 @@ import (
 func Example_custom() {
 	// Set up the context used to instantiate the engine.
 	ctx := context.Background()
-
+	cfg := wasmtime.NewConfig()
+	cfg.SetWasmMemory64(true)
+	e := Engine(WithEngine(wasmtime.NewEngineWithConfig(cfg)))
 	// Configure waPC to use a specific wasmer feature.
-	e := Engine(WithEngine(func() *wasmtime.Engine {
-		return wasmtime.NewEngineWithConfig(func() *wasmtime.Config {
-			cfg := wasmtime.NewConfig()
-			cfg.SetWasmMemory64(true)
-			return cfg
-		}())
-	}))
 
 	// Instantiate a module normally.
 	m, err := e.New(ctx, wapc.NoOpHostCallHandler, guest, mc)

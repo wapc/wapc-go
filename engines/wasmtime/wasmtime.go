@@ -15,7 +15,7 @@ import (
 
 type (
 	engine struct {
-		engineFn func() *wasmtime.Engine
+		engPtr *wasmtime.Engine
 	}
 
 	// Module represents a compile waPC module.
@@ -77,20 +77,18 @@ type (
 var _ = (wapc.Module)((*Module)(nil))
 var _ = (wapc.Instance)((*Instance)(nil))
 
-type EngineOption func(e *engine)
-
 // WithEngine allows you to override the default engine. Defaults to
-// `wasmer.NewEngine`.
-func WithEngine(engineFn func() *wasmtime.Engine) EngineOption {
-	return func(e *engine) {
-		e.engineFn = engineFn
-	}
+// `wasmtime.NewEngine`.
+func WithEngine(engine *wasmtime.Engine) *wasmtime.Engine {
+	return engine
 }
 
-func Engine(opts ...EngineOption) wapc.Engine {
-	e := engine{engineFn: wasmtime.NewEngine}
-	for _, opt := range opts {
-		opt(&e)
+func Engine(engs ...*wasmtime.Engine) wapc.Engine {
+	var e engine
+	if len(engs) > 0 {
+		e = engine{engPtr: engs[0]}
+	} else {
+		e = engine{engPtr: wasmtime.NewEngine()}
 	}
 	return &e
 }
@@ -101,22 +99,22 @@ func (e *engine) Name() string {
 
 // New implements the same method as documented on wapc.Engine.
 func (e *engine) New(_ context.Context, host wapc.HostCallHandler, guest []byte, config *wapc.ModuleConfig) (mod wapc.Module, err error) {
-	engine := e.engineFn()
-	if engine == nil {
+	engine := e
+	if engine.engPtr == nil {
 		return nil, errors.New("function set by WithEngine returned nil")
 	}
-	store := wasmtime.NewStore(engine)
+	store := wasmtime.NewStore(engine.engPtr)
 	wasiConfig := wasmtime.NewWasiConfig()
 	// Note: wasmtime does not support writer-based stdout/stderr
 	store.SetWasi(wasiConfig)
 
-	module, err := wasmtime.NewModule(engine, guest)
+	module, err := wasmtime.NewModule(engine.engPtr, guest)
 	if err != nil {
 		return nil, err
 	}
 
 	return &Module{
-		engine:          engine,
+		engine:          engine.engPtr,
 		store:           store,
 		module:          module,
 		logger:          config.Logger,
