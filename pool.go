@@ -16,17 +16,29 @@ type (
 		module    Module
 		instances []Instance
 	}
+
+	InstanceInitialize func(instance Instance) error
 )
 
 // NewPool takes in compiled WASM module and a size and returns a pool
 // containing `size` instances of that module.
-func NewPool(ctx context.Context, module Module, size uint64) (*Pool, error) {
+func NewPool(ctx context.Context, module Module, size uint64, initializer ...InstanceInitialize) (*Pool, error) {
+	var initialize InstanceInitialize
+	if len(initializer) > 0 {
+		initialize = initializer[0]
+	}
 	rb := queue.NewRingBuffer(size)
 	instances := make([]Instance, size)
 	for i := uint64(0); i < size; i++ {
 		inst, err := module.Instantiate(ctx)
 		if err != nil {
 			return nil, err
+		}
+
+		if initialize != nil {
+			if err = initialize(inst); err != nil {
+				return nil, fmt.Errorf("could not initialize instance: %w", err)
+			}
 		}
 
 		ok, err := rb.Offer(inst)
