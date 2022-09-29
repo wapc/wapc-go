@@ -35,8 +35,7 @@ func TestMain(m *testing.M) {
 
 func TestEngineWithRuntime(t *testing.T) {
 	t.Run("instantiates custom runtime", func(t *testing.T) {
-		rc := wazero.NewRuntimeConfig().WithWasmCore2()
-		r := wazero.NewRuntimeWithConfig(testCtx, rc)
+		r := wazero.NewRuntime(testCtx)
 		defer r.Close(testCtx)
 
 		if _, err := wasi_snapshot_preview1.Instantiate(testCtx, r); err != nil {
