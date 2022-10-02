@@ -97,9 +97,6 @@ type (
 var _ = (wapc.Module)((*Module)(nil))
 var _ = (wapc.Instance)((*Instance)(nil))
 
-// EngineOption is a wasmer-specific configuration, applied via Engine
-type EngineOption func(e *engine)
-
 // WithEngine allows you to override the default engine. Defaults to
 // `wasmer.NewEngine`.
 func WithEngine(engine *wasmer.Engine) *wasmer.Engine {
