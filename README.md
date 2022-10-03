@@ -33,12 +33,14 @@ func main() {
 
 	engine := wazero.Engine()
 
-	module, err := engine.New(ctx, code, hostCall)
+	module, err := engine.New(ctx, host, guest, &wapc.ModuleConfig{
+		Logger: wapc.PrintlnLogger,
+		Stdout: os.Stdout,
+		Stderr: os.Stderr,
+	})
 	if err != nil {
 		panic(err)
 	}
-	module.SetLogger(wapc.Println)
-	module.SetWriter(wapc.Print)
 	defer module.Close(ctx)
 
 	instance, err := module.Instantiate(ctx)
@@ -82,7 +84,10 @@ Hello, WaPC!
 Alternatively you can use a `Pool` to manage a pool of instances.
 
 ```go
-	pool, err := wapc.NewPool(ctx, module, 10)
+	pool, err := wapc.NewPool(ctx, module, 10, func(instance wapc.Instance) error {
+		// Do something to initialize this instance before use.
+		return nil
+	})
 	if err != nil {
 		panic(err)
 	}

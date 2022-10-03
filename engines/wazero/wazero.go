@@ -95,8 +95,7 @@ func (e *engine) Name() string {
 // DefaultRuntime implements NewRuntime by returning a wazero runtime with WASI
 // and AssemblyScript host functions instantiated.
 func DefaultRuntime(ctx context.Context) (wazero.Runtime, error) {
-	rc := wazero.NewRuntimeConfig().WithWasmCore2()
-	r := wazero.NewRuntimeWithConfig(ctx, rc)
+	r := wazero.NewRuntime(ctx)
 
 	if _, err := wasi_snapshot_preview1.Instantiate(ctx, r); err != nil {
 		_ = r.Close(ctx)
@@ -104,7 +103,7 @@ func DefaultRuntime(ctx context.Context) (wazero.Runtime, error) {
 	}
 
 	// This disables the abort message as no other engines write it.
-	envBuilder := r.NewModuleBuilder("env")
+	envBuilder := r.NewHostModuleBuilder("env")
 	assemblyscript.NewFunctionExporter().WithAbortMessageDisabled().ExportFunctions(envBuilder)
 	if _, err := envBuilder.Instantiate(ctx, r); err != nil {
 		_ = r.Close(ctx)
@@ -138,7 +137,7 @@ func (e *engine) New(ctx context.Context, host wapc.HostCallHandler, guest []byt
 		return
 	}
 
-	if m.compiled, err = r.CompileModule(ctx, guest, wazero.NewCompileConfig()); err != nil {
+	if m.compiled, err = r.CompileModule(ctx, guest); err != nil {
 		_ = r.Close(ctx)
 		return
 	}
@@ -163,7 +162,7 @@ type wapcHost struct {
 func instantiateWapcHost(ctx context.Context, r wazero.Runtime, callHandler wapc.HostCallHandler, logger wapc.Logger) (api.Module, error) {
 	h := &wapcHost{callHandler: callHandler, logger: logger}
 	// Export host functions (in the order defined in https://wapc.io/docs/spec/#required-host-exports)
-	return r.NewModuleBuilder("wapc").
+	return r.NewHostModuleBuilder("wapc").
 		ExportFunction("__host_call", h.hostCall,
 			"__host_call", "bind_ptr", "bind_len", "ns_ptr", "ns_len", "cmd_ptr", "cmd_len", "payload_ptr", "payload_len").
 		ExportFunction("__console_log", h.consoleLog,
