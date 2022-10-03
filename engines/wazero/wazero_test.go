@@ -48,8 +48,8 @@ func TestModule_UnwrapRuntime(t *testing.T) {
 	}
 }
 
-//TestModule_UnwrapModule ensures the Unwrap returns the correct CompiledModule interface
-func TestModule_UnwrapModule(t *testing.T) {
+// TestInstance_UnwrapModule ensures the Unwrap returns the correct CompiledModule interface
+func TestInstance_UnwrapModule(t *testing.T) {
 	m, err := EngineWithRuntime(DefaultRuntime).New(testCtx, wapc.NoOpHostCallHandler, guest, mc)
 	if err != nil {
 		t.Errorf("Error creating module - %v", err)
