@@ -94,7 +94,7 @@ func EngineWithRuntime(newRuntime NewRuntime) wapc.Engine {
 	return &engine{newRuntime: newRuntime}
 }
 
-// DefaultRuntime implements NewRuntime by returning a wasmer Engine
+// DefaultRuntime implements NewRuntime by returning a wasmtime Engine
 func DefaultRuntime() (*wasmtime.Engine, error) {
 	return wasmtime.NewEngine(), nil
 }

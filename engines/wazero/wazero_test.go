@@ -56,9 +56,13 @@ func TestModule_UnwrapCompiler(t *testing.T) {
 	}
 	defer m.Close(testCtx)
 
-	mod := m.(*Module)
-	expected := &mod.compiled
-	if have := mod.UnwrapCompiledModule(); have != expected {
+	mod, err := m.Instantiate(testCtx)
+	if err != nil {
+		t.Errorf("Error instantiating module - %v", err)
+	}
+	inst := mod.(*Instance)
+	expected := inst.m
+	if have := inst.UnwrapModule(); have != expected {
 		t.Errorf("Unexpected module, have %v, expected %v", have, expected)
 	}
 }
