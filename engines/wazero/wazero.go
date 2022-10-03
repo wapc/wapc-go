@@ -144,6 +144,16 @@ func (e *engine) New(ctx context.Context, host wapc.HostCallHandler, guest []byt
 	return
 }
 
+// UnwrapCompiledModule allows access to wazero-specific compiled module.
+func (m *Module) UnwrapCompiledModule() *wazero.CompiledModule {
+	return &m.compiled
+}
+
+// UnwrapRuntime allows access to wazero-specific runtime features.
+func (m *Module) UnwrapRuntime() *wazero.Runtime {
+	return &m.runtime
+}
+
 // wapcHost implements all required waPC host function exports.
 //
 // See https://wapc.io/docs/spec/#required-host-exports
