@@ -15,7 +15,7 @@ import (
 
 type (
 	engine struct {
-		engPtr *wasmtime.Engine
+		newRuntime NewRuntime
 	}
 
 	// Module represents a compile waPC module.
@@ -77,20 +77,26 @@ type (
 var _ = (wapc.Module)((*Module)(nil))
 var _ = (wapc.Instance)((*Instance)(nil))
 
-// WithEngine allows you to override the default engine. Defaults to
-// `wasmtime.NewEngine`.
-func WithEngine(engine *wasmtime.Engine) *wasmtime.Engine {
-	return engine
+var engineInstance = engine{newRuntime: DefaultRuntime}
+
+// Engine returns a new wapc.Engine which uses the DefaultRuntime.
+func Engine() wapc.Engine {
+	return &engineInstance
 }
 
-func Engine(engs ...*wasmtime.Engine) wapc.Engine {
-	var e engine
-	if len(engs) > 0 {
-		e = engine{engPtr: engs[0]}
-	} else {
-		e = engine{engPtr: wasmtime.NewEngine()}
-	}
-	return &e
+// NewRuntime returns a new wazero runtime which is called when the New method
+// on wapc.Engine is called. The result is closed upon wapc.Module Close.
+type NewRuntime func() (*wasmtime.Engine, error)
+
+// EngineWithRuntime allows you to customize or return an alternative to
+// DefaultRuntime,
+func EngineWithRuntime(newRuntime NewRuntime) wapc.Engine {
+	return &engine{newRuntime: newRuntime}
+}
+
+// DefaultRuntime implements NewRuntime by returning a wasmer Engine
+func DefaultRuntime() (*wasmtime.Engine, error) {
+	return wasmtime.NewEngine(), nil
 }
 
 func (e *engine) Name() string {
@@ -99,22 +105,22 @@ func (e *engine) Name() string {
 
 // New implements the same method as documented on wapc.Engine.
 func (e *engine) New(_ context.Context, host wapc.HostCallHandler, guest []byte, config *wapc.ModuleConfig) (mod wapc.Module, err error) {
-	engine := e
-	if engine.engPtr == nil {
-		return nil, errors.New("function set by WithEngine returned nil")
+	r, err := e.newRuntime()
+	if err != nil {
+		return nil, err
 	}
-	store := wasmtime.NewStore(engine.engPtr)
+	store := wasmtime.NewStore(r)
 	wasiConfig := wasmtime.NewWasiConfig()
 	// Note: wasmtime does not support writer-based stdout/stderr
 	store.SetWasi(wasiConfig)
 
-	module, err := wasmtime.NewModule(engine.engPtr, guest)
+	module, err := wasmtime.NewModule(r, guest)
 	if err != nil {
 		return nil, err
 	}
 
 	return &Module{
-		engine:          engine.engPtr,
+		engine:          r,
 		store:           store,
 		module:          module,
 		logger:          config.Logger,

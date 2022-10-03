@@ -18,7 +18,7 @@ import (
 
 type (
 	engine struct {
-		engPtr *wasmer.Engine
+		newRuntime NewRuntime
 	}
 
 	// Module represents a compile waPC module.
@@ -97,32 +97,39 @@ type (
 var _ = (wapc.Module)((*Module)(nil))
 var _ = (wapc.Instance)((*Instance)(nil))
 
-// WithEngine allows you to override the default engine. Defaults to
-// `wasmer.NewEngine`.
-func WithEngine(engine *wasmer.Engine) *wasmer.Engine {
-	return engine
+var engineInstance = engine{newRuntime: DefaultRuntime}
+
+// Engine returns a new wapc.Engine which uses the DefaultRuntime.
+func Engine() wapc.Engine {
+	return &engineInstance
 }
 
-func Engine(engs ...*wasmer.Engine) wapc.Engine {
-	var e engine
-	if len(engs) > 0 {
-		e = engine{engPtr: engs[0]}
-	} else {
-		e = engine{engPtr: wasmer.NewEngine()}
-	}
-	return &e
+// NewRuntime returns a new wazero runtime which is called when the New method
+// on wapc.Engine is called. The result is closed upon wapc.Module Close.
+type NewRuntime func() (*wasmer.Engine, error)
+
+// EngineWithRuntime allows you to customize or return an alternative to
+// DefaultRuntime,
+func EngineWithRuntime(newRuntime NewRuntime) wapc.Engine {
+	return &engine{newRuntime: newRuntime}
 }
+
+// DefaultRuntime implements NewRuntime by returning a wasmer Engine
+func DefaultRuntime() (*wasmer.Engine, error) {
+	return wasmer.NewEngine(), nil
+}
+
 func (e *engine) Name() string {
 	return "wasmer"
 }
 
 // New implements the same method as documented on wapc.Engine.
 func (e *engine) New(_ context.Context, host wapc.HostCallHandler, guest []byte, config *wapc.ModuleConfig) (mod wapc.Module, err error) {
-	wasmerEngine := e
-	if wasmerEngine.engPtr == nil {
-		return nil, errors.New("function set by WithEngine returned nil")
+	r, err := e.newRuntime()
+	if err != nil {
+		return nil, err
 	}
-	store := wasmer.NewStore(wasmerEngine.engPtr)
+	store := wasmer.NewStore(r)
 
 	module, err := wasmer.NewModule(store, guest)
 	if err != nil {
@@ -130,7 +137,7 @@ func (e *engine) New(_ context.Context, host wapc.HostCallHandler, guest []byte,
 	}
 
 	return &Module{
-		engine:          wasmerEngine.engPtr,
+		engine:          r,
 		store:           store,
 		module:          module,
 		logger:          config.Logger,

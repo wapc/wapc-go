@@ -15,7 +15,9 @@ func Example_custom() {
 	ctx := context.Background()
 	cfg := wasmtime.NewConfig()
 	cfg.SetWasmMemory64(true)
-	e := Engine(WithEngine(wasmtime.NewEngineWithConfig(cfg)))
+	e := EngineWithRuntime(func() (*wasmtime.Engine, error) {
+		return wasmtime.NewEngineWithConfig(cfg), nil
+	})
 	// Configure waPC to use a specific wasmer feature.
 
 	// Instantiate a module normally.
