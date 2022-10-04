@@ -48,7 +48,7 @@ func TestModule_UnwrapRuntime(t *testing.T) {
 	}
 }
 
-// TestInstance_UnwrapModule ensures the Unwrap returns the correct CompiledModule interface
+// TestInstance_UnwrapModule ensures the Unwrap returns the correct api.Module interface
 func TestInstance_UnwrapModule(t *testing.T) {
 	m, err := EngineWithRuntime(DefaultRuntime).New(testCtx, wapc.NoOpHostCallHandler, guest, mc)
 	if err != nil {
