@@ -33,6 +33,40 @@ func TestMain(m *testing.M) {
 	os.Exit(m.Run())
 }
 
+// TestModule_UnwrapRuntime ensures the Unwrap returns the correct Runtime interface
+func TestModule_UnwrapRuntime(t *testing.T) {
+	m, err := EngineWithRuntime(DefaultRuntime).New(testCtx, wapc.NoOpHostCallHandler, guest, mc)
+	if err != nil {
+		t.Errorf("Error creating module - %v", err)
+	}
+	defer m.Close(testCtx)
+
+	mod := m.(*Module)
+	expected := &mod.runtime
+	if have := mod.UnwrapRuntime(); have != expected {
+		t.Errorf("Unexpected module, have %v, expected %v", have, expected)
+	}
+}
+
+// TestInstance_UnwrapModule ensures the Unwrap returns the correct api.Module interface
+func TestInstance_UnwrapModule(t *testing.T) {
+	m, err := EngineWithRuntime(DefaultRuntime).New(testCtx, wapc.NoOpHostCallHandler, guest, mc)
+	if err != nil {
+		t.Errorf("Error creating module - %v", err)
+	}
+	defer m.Close(testCtx)
+
+	mod, err := m.Instantiate(testCtx)
+	if err != nil {
+		t.Errorf("Error instantiating module - %v", err)
+	}
+	inst := mod.(*Instance)
+	expected := inst.m
+	if have := inst.UnwrapModule(); have != expected {
+		t.Errorf("Unexpected module, have %v, expected %v", have, expected)
+	}
+}
+
 func TestEngineWithRuntime(t *testing.T) {
 	t.Run("instantiates custom runtime", func(t *testing.T) {
 		r := wazero.NewRuntime(testCtx)

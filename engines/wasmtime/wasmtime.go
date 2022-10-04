@@ -14,7 +14,9 @@ import (
 )
 
 type (
-	engine struct{}
+	engine struct {
+		newRuntime NewRuntime
+	}
 
 	// Module represents a compile waPC module.
 	Module struct {
@@ -75,10 +77,26 @@ type (
 var _ = (wapc.Module)((*Module)(nil))
 var _ = (wapc.Instance)((*Instance)(nil))
 
-var engineInstance = engine{}
+var engineInstance = engine{newRuntime: DefaultRuntime}
 
+// Engine returns a new wapc.Engine which uses the DefaultRuntime.
 func Engine() wapc.Engine {
 	return &engineInstance
+}
+
+// NewRuntime returns a new wazero runtime which is called when the New method
+// on wapc.Engine is called. The result is closed upon wapc.Module Close.
+type NewRuntime func() (*wasmtime.Engine, error)
+
+// EngineWithRuntime allows you to customize or return an alternative to
+// DefaultRuntime,
+func EngineWithRuntime(newRuntime NewRuntime) wapc.Engine {
+	return &engine{newRuntime: newRuntime}
+}
+
+// DefaultRuntime implements NewRuntime by returning a wasmtime Engine
+func DefaultRuntime() (*wasmtime.Engine, error) {
+	return wasmtime.NewEngine(), nil
 }
 
 func (e *engine) Name() string {
@@ -87,20 +105,22 @@ func (e *engine) Name() string {
 
 // New implements the same method as documented on wapc.Engine.
 func (e *engine) New(_ context.Context, host wapc.HostCallHandler, guest []byte, config *wapc.ModuleConfig) (mod wapc.Module, err error) {
-	engine := wasmtime.NewEngine()
-	store := wasmtime.NewStore(engine)
-
+	r, err := e.newRuntime()
+	if err != nil {
+		return nil, err
+	}
+	store := wasmtime.NewStore(r)
 	wasiConfig := wasmtime.NewWasiConfig()
 	// Note: wasmtime does not support writer-based stdout/stderr
 	store.SetWasi(wasiConfig)
 
-	module, err := wasmtime.NewModule(engine, guest)
+	module, err := wasmtime.NewModule(r, guest)
 	if err != nil {
 		return nil, err
 	}
 
 	return &Module{
-		engine:          engine,
+		engine:          r,
 		store:           store,
 		module:          module,
 		logger:          config.Logger,
@@ -441,6 +461,16 @@ func (i *Instance) Invoke(ctx context.Context, operation string, payload []byte)
 	return nil, fmt.Errorf("call to %q was unsuccessful", operation)
 }
 
+// Unwrap allows access to wasmtime-specific features.
+func (i *Instance) Unwrap() *wasmtime.Instance {
+	return i.inst
+}
+
+// UnwrapStore allows access to wasmtime-specific features.
+func (i *Instance) UnwrapStore() *wasmtime.Store {
+	return i.m.store
+}
+
 // Close closes the single instance.  This should be called before calling `Close` on the Module itself.
 func (i *Instance) Close(context.Context) error {
 	if !atomic.CompareAndSwapUint32(&i.closed, 0, 1) {
@@ -462,6 +492,16 @@ func (i *Instance) Close(context.Context) error {
 	i.consoleLog = nil
 	i.abort = nil
 	return nil // wasmtime only closes via finalizer
+}
+
+// Unwrap allows access to wasmtime-specific features.
+func (m *Module) Unwrap() *wasmtime.Module {
+	return m.module
+}
+
+// UnwrapStore allows access to wasmtime-specific features.
+func (m *Module) UnwrapStore() *wasmtime.Store {
+	return m.store
 }
 
 // Close closes the module.  This should be called after calling `Close` on any instances that were created.

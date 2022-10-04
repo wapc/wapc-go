@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-
 	"sync/atomic"
 
 	"github.com/tetratelabs/wazero"
@@ -143,6 +142,11 @@ func (e *engine) New(ctx context.Context, host wapc.HostCallHandler, guest []byt
 		return
 	}
 	return
+}
+
+// UnwrapRuntime allows access to wazero-specific runtime features.
+func (m *Module) UnwrapRuntime() *wazero.Runtime {
+	return &m.runtime
 }
 
 // wapcHost implements all required waPC host function exports.
@@ -338,6 +342,11 @@ func newInvokeContext(ctx context.Context, ic *invokeContext) context.Context {
 func fromInvokeContext(ctx context.Context) *invokeContext {
 	ic, _ := ctx.Value(invokeContextKey{}).(*invokeContext)
 	return ic
+}
+
+// UnwrapModule allows access to wazero-specific api.Module.
+func (i *Instance) UnwrapModule() api.Module {
+	return i.m
 }
 
 // Invoke implements the same method as documented on wapc.Instance.
