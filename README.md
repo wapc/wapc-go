@@ -33,7 +33,7 @@ func main() {
 
 	engine := wazero.Engine()
 
-	module, err := engine.New(ctx, host, guest, &wapc.ModuleConfig{
+	module, err := engine.New(ctx, hostCall, code, &wapc.ModuleConfig{
 		Logger: wapc.PrintlnLogger,
 		Stdout: os.Stdout,
 		Stderr: os.Stderr,
