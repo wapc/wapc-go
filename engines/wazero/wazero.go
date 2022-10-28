@@ -14,6 +14,14 @@ import (
 	"github.com/wapc/wapc-go"
 )
 
+const i32 = api.ValueTypeI32
+
+var (
+	resultZero  = []uint64{0}
+	resultTrue  = []uint64{1}
+	resultFalse = resultZero
+)
+
 // functionStart is the name of the nullary function a module exports if it is a WASI Command Module.
 //
 // See https://github.com/WebAssembly/WASI/blob/snapshot-01/design/application-abi.md#current-unstable-abi
@@ -167,34 +175,60 @@ type wapcHost struct {
 func instantiateWapcHost(ctx context.Context, r wazero.Runtime, callHandler wapc.HostCallHandler, logger wapc.Logger) (api.Module, error) {
 	h := &wapcHost{callHandler: callHandler, logger: logger}
 	// Export host functions (in the order defined in https://wapc.io/docs/spec/#required-host-exports)
+	// Note: These are defined manually (without reflection) for higher performance as waPC is a foundational library.
 	return r.NewHostModuleBuilder("wapc").
-		ExportFunction("__host_call", h.hostCall,
-			"__host_call", "bind_ptr", "bind_len", "ns_ptr", "ns_len", "cmd_ptr", "cmd_len", "payload_ptr", "payload_len").
-		ExportFunction("__console_log", h.consoleLog,
-			"__console_log", "ptr", "len").
-		ExportFunction("__guest_request", h.guestRequest,
-			"__guest_request", "op_ptr", "ptr").
-		ExportFunction("__host_response", h.hostResponse,
-			"__host_response", "ptr").
-		ExportFunction("__host_response_len", h.hostResponseLen,
-			"__host_response_len").
-		ExportFunction("__guest_response", h.guestResponse,
-			"__guest_response", "ptr", "len").
-		ExportFunction("__guest_error", h.guestError,
-			"__guest_error", "ptr", "len").
-		ExportFunction("__host_error", h.hostError,
-			"__host_error", "ptr").
-		ExportFunction("__host_error_len", h.hostErrorLen,
-			"__host_error_len").
+		NewFunctionBuilder().
+		WithGoModuleFunction(api.GoModuleFunc(h.hostCall), []api.ValueType{i32, i32, i32, i32, i32, i32, i32, i32}, []api.ValueType{i32}).
+		WithParameterNames("bind_ptr", "bind_len", "ns_ptr", "ns_len", "cmd_ptr", "cmd_len", "payload_ptr", "payload_len").
+		Export("__host_call").
+		NewFunctionBuilder().
+		WithGoModuleFunction(api.GoModuleFunc(h.consoleLog), []api.ValueType{i32, i32}, []api.ValueType{}).
+		WithParameterNames("ptr", "len").
+		Export("__console_log").
+		NewFunctionBuilder().
+		WithGoModuleFunction(api.GoModuleFunc(h.guestRequest), []api.ValueType{i32, i32}, []api.ValueType{}).
+		WithParameterNames("op_ptr", "ptr").
+		Export("__guest_request").
+		NewFunctionBuilder().
+		WithGoModuleFunction(api.GoModuleFunc(h.hostResponse), []api.ValueType{i32}, []api.ValueType{}).
+		WithParameterNames("ptr").
+		Export("__host_response").
+		NewFunctionBuilder().
+		WithGoFunction(api.GoFunc(h.hostResponseLen), []api.ValueType{}, []api.ValueType{i32}).
+		Export("__host_response_len").
+		NewFunctionBuilder().
+		WithGoModuleFunction(api.GoModuleFunc(h.guestResponse), []api.ValueType{i32, i32}, []api.ValueType{}).
+		WithParameterNames("ptr", "len").
+		Export("__guest_response").
+		NewFunctionBuilder().
+		WithGoModuleFunction(api.GoModuleFunc(h.guestError), []api.ValueType{i32, i32}, []api.ValueType{}).
+		WithParameterNames("ptr", "len").
+		Export("__guest_error").
+		NewFunctionBuilder().
+		WithGoModuleFunction(api.GoModuleFunc(h.hostError), []api.ValueType{i32}, []api.ValueType{}).
+		WithParameterNames("ptr").
+		Export("__host_error").
+		NewFunctionBuilder().
+		WithGoFunction(api.GoFunc(h.hostErrorLen), []api.ValueType{}, []api.ValueType{i32}).
+		Export("__host_error_len").
 		Instantiate(ctx, r)
 }
 
 // hostCall is the WebAssembly function export "__host_call", which initiates a host using the callHandler using
 // parameters read from linear memory (wasm.Memory).
-func (w *wapcHost) hostCall(ctx context.Context, m api.Module, bindPtr, bindLen, nsPtr, nsLen, cmdPtr, cmdLen, payloadPtr, payloadLen uint32) int32 {
+func (w *wapcHost) hostCall(ctx context.Context, m api.Module, params []uint64) []uint64 {
+	bindPtr := uint32(params[0])
+	bindLen := uint32(params[1])
+	nsPtr := uint32(params[2])
+	nsLen := uint32(params[3])
+	cmdPtr := uint32(params[4])
+	cmdLen := uint32(params[5])
+	payloadPtr := uint32(params[6])
+	payloadLen := uint32(params[7])
+
 	ic := fromInvokeContext(ctx)
 	if ic == nil || w.callHandler == nil {
-		return 0 // false: there's neither an invocation context, nor a callHandler
+		return resultFalse // there's neither an invocation context, nor a callHandler
 	}
 
 	mem := m.Memory()
@@ -204,24 +238,32 @@ func (w *wapcHost) hostCall(ctx context.Context, m api.Module, bindPtr, bindLen,
 	payload := requireRead(ctx, mem, "payload", payloadPtr, payloadLen)
 
 	if ic.hostResp, ic.hostErr = w.callHandler(ctx, binding, namespace, operation, payload); ic.hostErr != nil {
-		return 0 // false: there was an error (assumed to be logged already?)
+		return resultFalse // there was an error (assumed to be logged already?)
 	}
 
-	return 1 // true
+	return resultTrue
 }
 
 // consoleLog is the WebAssembly function export "__console_log", which logs the message stored by the guest at the
 // given offset (ptr) and length (len) in linear memory (wasm.Memory).
-func (w *wapcHost) consoleLog(ctx context.Context, m api.Module, ptr, len uint32) {
+func (w *wapcHost) consoleLog(ctx context.Context, m api.Module, params []uint64) (_ []uint64) {
+	ptr := uint32(params[0])
+	len := uint32(params[1])
+
 	if log := w.logger; log != nil {
 		msg := requireReadString(ctx, m.Memory(), "msg", ptr, len)
 		w.logger(msg)
 	}
+
+	return
 }
 
 // guestRequest is the WebAssembly function export "__guest_request", which writes the invokeContext.operation and
 // invokeContext.guestReq to the given offsets (opPtr, ptr) in linear memory (wasm.Memory).
-func (w *wapcHost) guestRequest(ctx context.Context, m api.Module, opPtr, ptr uint32) {
+func (w *wapcHost) guestRequest(ctx context.Context, m api.Module, params []uint64) (_ []uint64) {
+	opPtr := uint32(params[0])
+	ptr := uint32(params[1])
+
 	ic := fromInvokeContext(ctx)
 	if ic == nil {
 		return // no invoke context
@@ -234,70 +276,96 @@ func (w *wapcHost) guestRequest(ctx context.Context, m api.Module, opPtr, ptr ui
 	if guestReq := ic.guestReq; guestReq != nil {
 		mem.Write(ctx, ptr, guestReq)
 	}
+
+	return
 }
 
 // hostResponse is the WebAssembly function export "__host_response", which writes the invokeContext.hostResp to the
 // given offset (ptr) in linear memory (wasm.Memory).
-func (w *wapcHost) hostResponse(ctx context.Context, m api.Module, ptr uint32) {
+func (w *wapcHost) hostResponse(ctx context.Context, m api.Module, params []uint64) (_ []uint64) {
+	ptr := uint32(params[0])
+
 	if ic := fromInvokeContext(ctx); ic == nil {
 		return // no invoke context
 	} else if hostResp := ic.hostResp; hostResp != nil {
 		m.Memory().Write(ctx, ptr, hostResp)
 	}
+
+	return
 }
 
 // hostResponse is the WebAssembly function export "__host_response_len", which returns the length of the current host
 // response from invokeContext.hostResp.
-func (w *wapcHost) hostResponseLen(ctx context.Context) uint32 {
+func (w *wapcHost) hostResponseLen(ctx context.Context, _ []uint64) []uint64 {
+	var hostResponseLen uint32
 	if ic := fromInvokeContext(ctx); ic == nil {
-		return 0 // no invoke context
+		return resultZero // no invoke context
 	} else if hostResp := ic.hostResp; hostResp != nil {
-		return uint32(len(hostResp))
+		hostResponseLen = uint32(len(hostResp))
 	} else {
-		return 0 // no host response
+		return resultZero // no host response
 	}
+
+	return []uint64{uint64(hostResponseLen)}
 }
 
 // guestResponse is the WebAssembly function export "__guest_response", which reads invokeContext.guestResp from the
 // given offset (ptr) and length (len) in linear memory (wasm.Memory).
-func (w *wapcHost) guestResponse(ctx context.Context, m api.Module, ptr, len uint32) {
+func (w *wapcHost) guestResponse(ctx context.Context, m api.Module, params []uint64) (_ []uint64) {
+	ptr := uint32(params[0])
+	len := uint32(params[1])
+
 	if ic := fromInvokeContext(ctx); ic == nil {
 		return // no invoke context
 	} else {
 		ic.guestResp = requireRead(ctx, m.Memory(), "guestResp", ptr, len)
 	}
+
+	return
 }
 
 // guestError is the WebAssembly function export "__guest_error", which reads invokeContext.guestErr from the given
 // offset (ptr) and length (len) in linear memory (wasm.Memory).
-func (w *wapcHost) guestError(ctx context.Context, m api.Module, ptr, len uint32) {
+func (w *wapcHost) guestError(ctx context.Context, m api.Module, params []uint64) (_ []uint64) {
+	ptr := uint32(params[0])
+	len := uint32(params[1])
+
 	if ic := fromInvokeContext(ctx); ic == nil {
 		return // no invoke context
 	} else {
 		ic.guestErr = requireReadString(ctx, m.Memory(), "guestErr", ptr, len)
 	}
+
+	return
 }
 
 // hostError is the WebAssembly function export "__host_error", which writes the invokeContext.hostErr to the given
 // offset (ptr) in linear memory (wasm.Memory).
-func (w *wapcHost) hostError(ctx context.Context, m api.Module, ptr uint32) {
+func (w *wapcHost) hostError(ctx context.Context, m api.Module, params []uint64) (_ []uint64) {
+	ptr := uint32(params[0])
+
 	if ic := fromInvokeContext(ctx); ic == nil {
 		return // no invoke context
 	} else if hostErr := ic.hostErr; hostErr != nil {
 		m.Memory().Write(ctx, ptr, []byte(hostErr.Error()))
 	}
+
+	return
 }
 
 // hostError is the WebAssembly function export "__host_error_len", which returns the length of the current host error
 // from invokeContext.hostErr.
-func (w *wapcHost) hostErrorLen(ctx context.Context) uint32 {
+func (w *wapcHost) hostErrorLen(ctx context.Context, _ []uint64) []uint64 {
+	var hostErrorLen uint32
 	if ic := fromInvokeContext(ctx); ic == nil {
-		return 0 // no invoke context
+		return resultZero // no invoke context
 	} else if hostErr := ic.hostErr; hostErr != nil {
-		return uint32(len(hostErr.Error()))
+		hostErrorLen = uint32(len(hostErr.Error()))
 	} else {
-		return 0 // no host error
+		return resultZero // no host error
 	}
+
+	return []uint64{uint64(hostErrorLen)}
 }
 
 // Instantiate implements the same method as documented on wapc.Module.
