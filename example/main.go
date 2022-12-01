@@ -56,7 +56,7 @@ func host(_ context.Context, binding, namespace, operation string, payload []byt
 		switch operation {
 		case "capitalize":
 			name := string(payload)
-			name = strings.Title(name)
+			name = strings.Title(name) // nolint
 			return []byte(name), nil
 		}
 	}
