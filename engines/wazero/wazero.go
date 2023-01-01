@@ -227,10 +227,10 @@ func (w *wapcHost) hostCall(ctx context.Context, m api.Module, stack []uint64) {
 	}
 
 	mem := m.Memory()
-	binding := requireReadString(ctx, mem, "binding", bindPtr, bindLen)
-	namespace := requireReadString(ctx, mem, "namespace", nsPtr, nsLen)
-	operation := requireReadString(ctx, mem, "operation", cmdPtr, cmdLen)
-	payload := requireRead(ctx, mem, "payload", payloadPtr, payloadLen)
+	binding := requireReadString(mem, "binding", bindPtr, bindLen)
+	namespace := requireReadString(mem, "namespace", nsPtr, nsLen)
+	operation := requireReadString(mem, "operation", cmdPtr, cmdLen)
+	payload := requireRead(mem, "payload", payloadPtr, payloadLen)
 
 	if ic.hostResp, ic.hostErr = w.callHandler(ctx, binding, namespace, operation, payload); ic.hostErr != nil {
 		stack[0] = 0 // false: error (assumed to be logged already?)
@@ -241,12 +241,12 @@ func (w *wapcHost) hostCall(ctx context.Context, m api.Module, stack []uint64) {
 
 // consoleLog is the WebAssembly function export "__console_log", which logs the message stored by the guest at the
 // given offset (ptr) and length (len) in linear memory (wasm.Memory).
-func (w *wapcHost) consoleLog(ctx context.Context, m api.Module, params []uint64) {
+func (w *wapcHost) consoleLog(_ context.Context, m api.Module, params []uint64) {
 	ptr := uint32(params[0])
 	len := uint32(params[1])
 
 	if log := w.logger; log != nil {
-		msg := requireReadString(ctx, m.Memory(), "msg", ptr, len)
+		msg := requireReadString(m.Memory(), "msg", ptr, len)
 		w.logger(msg)
 	}
 }
@@ -264,10 +264,10 @@ func (w *wapcHost) guestRequest(ctx context.Context, m api.Module, params []uint
 
 	mem := m.Memory()
 	if operation := ic.operation; operation != "" {
-		mem.Write(ctx, opPtr, []byte(operation))
+		mem.Write(opPtr, []byte(operation))
 	}
 	if guestReq := ic.guestReq; guestReq != nil {
-		mem.Write(ctx, ptr, guestReq)
+		mem.Write(ptr, guestReq)
 	}
 }
 
@@ -279,7 +279,7 @@ func (w *wapcHost) hostResponse(ctx context.Context, m api.Module, params []uint
 	if ic := fromInvokeContext(ctx); ic == nil {
 		return // no invoke context
 	} else if hostResp := ic.hostResp; hostResp != nil {
-		m.Memory().Write(ctx, ptr, hostResp)
+		m.Memory().Write(ptr, hostResp)
 	}
 }
 
@@ -306,7 +306,7 @@ func (w *wapcHost) guestResponse(ctx context.Context, m api.Module, params []uin
 	if ic := fromInvokeContext(ctx); ic == nil {
 		return // no invoke context
 	} else {
-		ic.guestResp = requireRead(ctx, m.Memory(), "guestResp", ptr, len)
+		ic.guestResp = requireRead(m.Memory(), "guestResp", ptr, len)
 	}
 }
 
@@ -319,7 +319,7 @@ func (w *wapcHost) guestError(ctx context.Context, m api.Module, params []uint64
 	if ic := fromInvokeContext(ctx); ic == nil {
 		return // no invoke context
 	} else {
-		ic.guestErr = requireReadString(ctx, m.Memory(), "guestErr", ptr, len)
+		ic.guestErr = requireReadString(m.Memory(), "guestErr", ptr, len)
 	}
 }
 
@@ -331,7 +331,7 @@ func (w *wapcHost) hostError(ctx context.Context, m api.Module, params []uint64)
 	if ic := fromInvokeContext(ctx); ic == nil {
 		return // no invoke context
 	} else if hostErr := ic.hostErr; hostErr != nil {
-		m.Memory().Write(ctx, ptr, []byte(hostErr.Error()))
+		m.Memory().Write(ptr, []byte(hostErr.Error()))
 	}
 }
 
@@ -374,8 +374,8 @@ func (m *Module) Instantiate(ctx context.Context) (wapc.Instance, error) {
 }
 
 // MemorySize implements the same method as documented on wapc.Instance.
-func (i *Instance) MemorySize(ctx context.Context) uint32 {
-	return i.m.Memory().Size(ctx)
+func (i *Instance) MemorySize() uint32 {
+	return i.m.Memory().Size()
 }
 
 type invokeContextKey struct{}
@@ -445,13 +445,13 @@ func (m *Module) Close(ctx context.Context) (err error) {
 }
 
 // requireReadString is a convenience function that casts requireRead
-func requireReadString(ctx context.Context, mem api.Memory, fieldName string, offset, byteCount uint32) string {
-	return string(requireRead(ctx, mem, fieldName, offset, byteCount))
+func requireReadString(mem api.Memory, fieldName string, offset, byteCount uint32) string {
+	return string(requireRead(mem, fieldName, offset, byteCount))
 }
 
 // requireRead is like api.Memory except that it panics if the offset and byteCount are out of range.
-func requireRead(ctx context.Context, mem api.Memory, fieldName string, offset, byteCount uint32) []byte {
-	buf, ok := mem.Read(ctx, offset, byteCount)
+func requireRead(mem api.Memory, fieldName string, offset, byteCount uint32) []byte {
+	buf, ok := mem.Read(offset, byteCount)
 	if !ok {
 		panic(fmt.Errorf("out of memory reading %s", fieldName))
 	}
