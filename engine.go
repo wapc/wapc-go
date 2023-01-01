@@ -50,7 +50,7 @@ type (
 	// Instance is an instantiated Module
 	Instance interface {
 		// MemorySize is the size in bytes of the memory available to this Instance.
-		MemorySize(context.Context) uint32
+		MemorySize() uint32
 
 		// Invoke calls `operation` with `payload` on the module and returns a byte slice payload.
 		Invoke(ctx context.Context, operation string, payload []byte) ([]byte, error)

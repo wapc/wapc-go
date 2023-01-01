@@ -425,7 +425,7 @@ func (i *Instance) wapcRuntime() map[string]*wasmtime.Func {
 }
 
 // MemorySize returns the memory length of the underlying instance.
-func (i *Instance) MemorySize(context.Context) uint32 {
+func (i *Instance) MemorySize() uint32 {
 	return uint32(i.mem.DataSize(i.m.store))
 }
 
