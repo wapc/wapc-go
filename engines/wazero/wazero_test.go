@@ -96,7 +96,8 @@ func TestEngineWithRuntime(t *testing.T) {
 
 		// We expect this to close the runtime returned by NewRuntime
 		m.Close(testCtx)
-		if _, err = r.InstantiateModuleFromBinary(testCtx, guest); err == nil {
+		// Ensure the runtime is now closed by invoking a related method
+		if mod := r.Module(wasi_snapshot_preview1.ModuleName); mod != nil {
 			t.Errorf("Expected Module.Close to close wazero Runtime")
 		}
 	})
