@@ -107,7 +107,7 @@ func DefaultRuntime(ctx context.Context) (wazero.Runtime, error) {
 	// This disables the abort message as no other engines write it.
 	envBuilder := r.NewHostModuleBuilder("env")
 	assemblyscript.NewFunctionExporter().WithAbortMessageDisabled().ExportFunctions(envBuilder)
-	if _, err := envBuilder.Instantiate(ctx, r); err != nil {
+	if _, err := envBuilder.Instantiate(ctx); err != nil {
 		_ = r.Close(ctx)
 		return nil, err
 	}
@@ -205,7 +205,7 @@ func instantiateWapcHost(ctx context.Context, r wazero.Runtime, callHandler wapc
 		NewFunctionBuilder().
 		WithGoFunction(api.GoFunc(h.hostErrorLen), []api.ValueType{}, []api.ValueType{i32}).
 		Export("__host_error_len").
-		Instantiate(ctx, r)
+		Instantiate(ctx)
 }
 
 // hostCall is the WebAssembly function export "__host_call", which initiates a host using the callHandler using
