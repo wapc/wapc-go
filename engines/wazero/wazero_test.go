@@ -48,6 +48,34 @@ func TestModule_UnwrapRuntime(t *testing.T) {
 	}
 }
 
+// TestModule_WithConfig ensures the module config can be extended
+func TestModule_WithConfig(t *testing.T) {
+	m, err := EngineWithRuntime(DefaultRuntime).New(testCtx, wapc.NoOpHostCallHandler, guest, mc)
+	if err != nil {
+		t.Errorf("Error creating module - %v", err)
+	}
+	defer m.Close(testCtx)
+
+	var mock = &mockModuleConfig{}
+	m.(*Module).config = mock
+	m.(*Module).WithConfig(func(config wazero.ModuleConfig) wazero.ModuleConfig {
+		return config.WithSysWalltime()
+	})
+	if !mock.calledWithSysWalltime {
+		t.Errorf(`Expected call to WithSysWalltime`)
+	}
+}
+
+type mockModuleConfig struct {
+	wazero.ModuleConfig
+	calledWithSysWalltime bool
+}
+
+func (m *mockModuleConfig) WithSysWalltime() wazero.ModuleConfig {
+	m.calledWithSysWalltime = true
+	return m
+}
+
 // TestInstance_UnwrapModule ensures the Unwrap returns the correct api.Module interface
 func TestInstance_UnwrapModule(t *testing.T) {
 	m, err := EngineWithRuntime(DefaultRuntime).New(testCtx, wapc.NoOpHostCallHandler, guest, mc)

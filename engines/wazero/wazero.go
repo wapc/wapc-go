@@ -151,6 +151,14 @@ func (m *Module) UnwrapRuntime() *wazero.Runtime {
 	return &m.runtime
 }
 
+// WithConfig allows you to override or replace wazero.ModuleConfig used to instantiate each guest.
+// This can be used to configure clocks or filesystem access.
+//
+// The default (function input) conflgures WASI and waPC init functions as well as stdout and stderr.
+func (m *Module) WithConfig(callback func(wazero.ModuleConfig) wazero.ModuleConfig) {
+	m.config = callback(m.config)
+}
+
 // wapcHost implements all required waPC host function exports.
 //
 // See https://wapc.io/docs/spec/#required-host-exports
