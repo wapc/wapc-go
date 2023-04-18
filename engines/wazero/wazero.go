@@ -151,6 +151,11 @@ func (m *Module) UnwrapRuntime() *wazero.Runtime {
 	return &m.runtime
 }
 
+// WithConfig allows access to wazero-specific module config.
+func (m *Module) WithConfig(callback func(wazero.ModuleConfig) wazero.ModuleConfig) {
+	m.config = callback(m.config)
+}
+
 // wapcHost implements all required waPC host function exports.
 //
 // See https://wapc.io/docs/spec/#required-host-exports
