@@ -20,7 +20,7 @@ func Example_custom() {
 	cfg.SetWasmMemory64(true)
 	e := EngineWithRuntime(func() (*wasmtime.Engine, error) {
 		return wasmtime.NewEngineWithConfig(cfg), nil
-	})
+	}, false)
 	// Configure waPC to use a specific wasmer feature.
 
 	// Instantiate a module normally.

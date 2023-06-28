@@ -22,6 +22,8 @@ var mc = &wapc.ModuleConfig{
 	Stderr: os.Stderr,
 }
 
+const cache = true
+
 // TestMain ensures we can read the example wasm prior to running unit tests.
 func TestMain(m *testing.M) {
 	var err error
@@ -38,7 +40,7 @@ func TestEngine_WithEngine(t *testing.T) {
 
 		e := EngineWithRuntime(func() (*wasmtime.Engine, error) {
 			return expected, nil
-		})
+		}, cache)
 		m, err := e.New(testCtx, wapc.NoOpHostCallHandler, guest, mc)
 		if err != nil {
 			t.Errorf("Error creating module - %v", err)
@@ -53,7 +55,7 @@ func TestEngine_WithEngine(t *testing.T) {
 		expectedErr := "function set by WithEngine returned nil"
 		e := EngineWithRuntime(func() (*wasmtime.Engine, error) {
 			return nil, errors.New(expectedErr)
-		})
+		}, cache)
 
 		if _, err := e.New(testCtx, wapc.NoOpHostCallHandler, guest, mc); err.Error() != expectedErr {
 			t.Errorf("Unexpected error, have %v, expected %v", err, expectedErr)
@@ -62,7 +64,7 @@ func TestEngine_WithEngine(t *testing.T) {
 }
 
 func TestModule_Unwrap(t *testing.T) {
-	m, err := EngineWithRuntime(DefaultRuntime).New(testCtx, wapc.NoOpHostCallHandler, guest, mc)
+	m, err := EngineWithRuntime(DefaultRuntime, cache).New(testCtx, wapc.NoOpHostCallHandler, guest, mc)
 	if err != nil {
 		t.Errorf("Error creating module - %v", err)
 	}
@@ -76,7 +78,7 @@ func TestModule_Unwrap(t *testing.T) {
 }
 
 func TestInstance_Unwrap(t *testing.T) {
-	m, err := EngineWithRuntime(DefaultRuntime).New(testCtx, wapc.NoOpHostCallHandler, guest, mc)
+	m, err := EngineWithRuntime(DefaultRuntime, cache).New(testCtx, wapc.NoOpHostCallHandler, guest, mc)
 	if err != nil {
 		t.Errorf("Error creating module - %v", err)
 	}
