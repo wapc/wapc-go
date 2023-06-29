@@ -89,14 +89,31 @@ func Engine() wapc.Engine {
 // on wapc.Engine is called. The result is closed upon wapc.Module Close.
 type NewRuntime func() (*wasmtime.Engine, error)
 
+// CacheImpl is to provide the caller with an opportunity to implement compiled unit caching
+// see wasmyime_test.go for an example of a simple cache
 type CacheImpl func(*wasmtime.Engine, []byte) (*wasmtime.Module, error)
 
-// EngineWithRuntime allows you to customize or return an alternative to
-// DefaultRuntime,
-func EngineWithRuntime(newRuntime NewRuntime, caching ...CacheImpl) wapc.Engine {
-	e := &engine{newRuntime: newRuntime}
-	if len(caching) > 0 {
-		e.cache = caching[0]
+type OptionFunc func(*engine)
+
+// WithCaching enables caching by using the supplied func to implement the cache via the caller
+func WithCaching(cache CacheImpl) OptionFunc {
+	return func(e *engine) {
+		e.cache = cache
+	}
+}
+
+// WithRuntime enables custom runtime creation and usage by using the supplied func to implement runtime creation via the caller
+func WithRuntime(runtime NewRuntime) OptionFunc {
+	return func(e *engine) {
+		e.newRuntime = runtime
+	}
+}
+
+// EngineWith allows you to customize or return an alternative to the default engine
+func EngineWith(options ...OptionFunc) wapc.Engine {
+	e := &engine{}
+	for _, option := range options {
+		option(e)
 	}
 	return e
 }

@@ -89,9 +89,9 @@ func TestEngine_WithEngine(t *testing.T) {
 	t.Run("ok", func(t *testing.T) {
 		expected := wasmer.NewEngine()
 
-		e := EngineWithRuntime(func() (*wasmer.Engine, error) {
+		e := EngineWith(WithRuntime(func() (*wasmer.Engine, error) {
 			return expected, nil
-		}, cache)
+		}), WithCaching(cache))
 
 		m, err := e.New(testCtx, wapc.NoOpHostCallHandler, guest, mc)
 		if err != nil {
@@ -106,9 +106,9 @@ func TestEngine_WithEngine(t *testing.T) {
 
 	t.Run("nil not ok", func(t *testing.T) {
 		expectedErr := "function set by WithEngine returned nil"
-		e := EngineWithRuntime(func() (*wasmer.Engine, error) {
+		e := EngineWith(WithRuntime(func() (*wasmer.Engine, error) {
 			return nil, errors.New(expectedErr)
-		}, cache)
+		}), WithCaching(cache))
 
 		if _, err := e.New(testCtx, wapc.NoOpHostCallHandler, guest, mc); err.Error() != expectedErr {
 			t.Errorf("Unexpected error, have %v, expected %v", err, expectedErr)
@@ -117,7 +117,7 @@ func TestEngine_WithEngine(t *testing.T) {
 }
 
 func TestModule_Unwrap(t *testing.T) {
-	m, err := EngineWithRuntime(DefaultRuntime, cache).New(testCtx, wapc.NoOpHostCallHandler, guest, mc)
+	m, err := EngineWith(WithRuntime(DefaultRuntime), WithCaching(cache)).New(testCtx, wapc.NoOpHostCallHandler, guest, mc)
 	if err != nil {
 		t.Errorf("Error creating module - %v", err)
 	}
@@ -131,7 +131,7 @@ func TestModule_Unwrap(t *testing.T) {
 }
 
 func TestInstance_Unwrap(t *testing.T) {
-	m, err := EngineWithRuntime(DefaultRuntime, cache).New(testCtx, wapc.NoOpHostCallHandler, guest, mc)
+	m, err := EngineWith(WithRuntime(DefaultRuntime), WithCaching(cache)).New(testCtx, wapc.NoOpHostCallHandler, guest, mc)
 	if err != nil {
 		t.Errorf("Error creating module - %v", err)
 	}
