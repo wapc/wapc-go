@@ -17,7 +17,6 @@ type (
 	engine struct {
 		newRuntime NewRuntime
 		cache      CacheImpl
-		version    string
 	}
 
 	// Module represents a compile waPC module.
