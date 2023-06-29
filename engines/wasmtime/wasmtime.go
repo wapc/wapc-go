@@ -4,12 +4,8 @@ package wasmtime
 
 import (
 	"context"
-	"crypto/sha256"
-	"encoding/hex"
 	"errors"
 	"fmt"
-	"os"
-	"path"
 	"sync/atomic"
 
 	"github.com/bytecodealliance/wasmtime-go"
@@ -20,7 +16,7 @@ import (
 type (
 	engine struct {
 		newRuntime NewRuntime
-		caching    bool
+		cache      CacheImpl
 		version    string
 	}
 
@@ -94,11 +90,13 @@ func Engine() wapc.Engine {
 // on wapc.Engine is called. The result is closed upon wapc.Module Close.
 type NewRuntime func() (*wasmtime.Engine, error)
 
+type CacheImpl func(*wasmtime.Engine, []byte) (*wasmtime.Module, error)
+
 // EngineWithRuntime allows you to customize or return an alternative to
 // DefaultRuntime,
-func EngineWithRuntime(newRuntime NewRuntime, caching bool) wapc.Engine {
+func EngineWithRuntime(newRuntime NewRuntime, caching CacheImpl) wapc.Engine {
 	e := &engine{newRuntime: newRuntime}
-	e.SetCaching(caching)
+	e.cache = caching
 	return e
 }
 
@@ -109,35 +107,6 @@ func DefaultRuntime() (*wasmtime.Engine, error) {
 
 func (e *engine) Name() string {
 	return "wasmtime"
-}
-
-func (e *engine) SetCaching(cache bool) {
-	e.caching = cache
-}
-
-func sha256FromBytes(guest []byte) string {
-	hash := sha256.New()
-
-	// Read the first 64K bytes from the file
-	maxbufferSize := 64 * 1024
-
-	if len(guest) < maxbufferSize {
-		maxbufferSize = len(guest)
-	}
-
-	// Write the read bytes to the hash object
-	hash.Write(guest[:maxbufferSize])
-
-	// Get the hash sum as a byte slice
-	return hex.EncodeToString(hash.Sum(nil))
-}
-
-func (e *engine) getCacheBase() string {
-	td := os.TempDir()
-	if e.version == "" {
-		e.version = "1.0.0"
-	}
-	return path.Join(td, "wapc-wasmtime", e.version)
 }
 
 // New implements the same method as documented on wapc.Engine.
@@ -151,37 +120,15 @@ func (e *engine) New(_ context.Context, host wapc.HostCallHandler, guest []byte,
 	// Note: wasmtime does not support writer-based stdout/stderr
 	store.SetWasi(wasiConfig)
 	var module *wasmtime.Module
-	if !e.caching {
+	if e.cache == nil {
 		module, err = wasmtime.NewModule(r, guest)
 		if err != nil {
 			return nil, err
 		}
 	} else {
-		basePath := e.getCacheBase()
-		if err := os.MkdirAll(basePath, 0755); err != nil && !os.IsExist(err) {
-			return nil, fmt.Errorf("failed to create cache directory: %w", err)
-		}
-		sha := sha256FromBytes(guest)
-		cachePath := path.Join(basePath, sha)
-		f, err := os.ReadFile(cachePath)
+		module, err = e.cache(r, guest)
 		if err != nil {
-			module, err = wasmtime.NewModule(r, guest)
-			if err != nil {
-				return nil, err
-			}
-			compiled, err := module.Serialize()
-			if err != nil {
-				return nil, err
-			}
-			err = os.WriteFile(cachePath, compiled, 0444)
-			if err != nil {
-				return nil, err
-			}
-		} else {
-			module, err = wasmtime.NewModuleDeserialize(r, f)
-			if err != nil {
-				return nil, err
-			}
+			return nil, err
 		}
 	}
 

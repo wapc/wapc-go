@@ -2,9 +2,13 @@ package wasmtime
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"errors"
+	"fmt"
 	"log"
 	"os"
+	"path"
 	"testing"
 
 	"github.com/bytecodealliance/wasmtime-go"
@@ -22,7 +26,54 @@ var mc = &wapc.ModuleConfig{
 	Stderr: os.Stderr,
 }
 
-const cache = true
+func sha256FromBytes(guest []byte) string {
+	hash := sha256.New()
+
+	// Read the first 64K bytes from the file
+	maxbufferSize := 64 * 1024
+
+	if len(guest) < maxbufferSize {
+		maxbufferSize = len(guest)
+	}
+
+	// Write the read bytes to the hash object
+	hash.Write(guest[:maxbufferSize])
+
+	// Get the hash sum as a byte slice
+	return hex.EncodeToString(hash.Sum(nil))
+}
+
+var cache = func(r *wasmtime.Engine, b []byte) (*wasmtime.Module, error) {
+	td := os.TempDir()
+	basePath := path.Join(td, "wapc-wasmtime", "1.0.0")
+	if err := os.MkdirAll(basePath, 0755); err != nil && !os.IsExist(err) {
+		return nil, fmt.Errorf("failed to create cache directory: %w", err)
+	}
+	sha := sha256FromBytes(guest)
+	cachePath := path.Join(basePath, sha)
+	f, err := os.ReadFile(cachePath)
+	var module *wasmtime.Module
+	if err != nil {
+		module, err = wasmtime.NewModule(r, guest)
+		if err != nil {
+			return nil, err
+		}
+		compiled, err := module.Serialize()
+		if err != nil {
+			return nil, err
+		}
+		err = os.WriteFile(cachePath, compiled, 0444)
+		if err != nil {
+			return nil, err
+		}
+	} else {
+		module, err = wasmtime.NewModuleDeserialize(r, f)
+		if err != nil {
+			return nil, err
+		}
+	}
+	return module, nil
+}
 
 // TestMain ensures we can read the example wasm prior to running unit tests.
 func TestMain(m *testing.M) {
