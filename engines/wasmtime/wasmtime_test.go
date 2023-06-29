@@ -45,7 +45,7 @@ func sha256FromBytes(guest []byte) string {
 
 var cache = func(r *wasmtime.Engine, b []byte) (*wasmtime.Module, error) {
 	td := os.TempDir()
-	basePath := path.Join(td, "wapc-wasmtime", "1.0.0")
+	basePath := path.Join(td, "wapc-cache", "wapc-wasmtime", "1.0.0")
 	if err := os.MkdirAll(basePath, 0755); err != nil && !os.IsExist(err) {
 		return nil, fmt.Errorf("failed to create cache directory: %w", err)
 	}

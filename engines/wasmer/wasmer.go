@@ -19,6 +19,7 @@ import (
 type (
 	engine struct {
 		newRuntime NewRuntime
+		cache      CacheImpl
 	}
 
 	// Module represents a compile waPC module.
@@ -108,10 +109,16 @@ func Engine() wapc.Engine {
 // on wapc.Engine is called. The result is closed upon wapc.Module Close.
 type NewRuntime func() (*wasmer.Engine, error)
 
+type CacheImpl func(*wasmer.Store, []byte) (*wasmer.Module, error)
+
 // EngineWithRuntime allows you to customize or return an alternative to
 // DefaultRuntime,
-func EngineWithRuntime(newRuntime NewRuntime) wapc.Engine {
-	return &engine{newRuntime: newRuntime}
+func EngineWithRuntime(newRuntime NewRuntime, caching ...CacheImpl) wapc.Engine {
+	e := &engine{newRuntime: newRuntime}
+	if len(caching) > 0 {
+		e.cache = caching[0]
+	}
+	return e
 }
 
 // DefaultRuntime implements NewRuntime by returning a wasmer Engine
@@ -131,11 +138,18 @@ func (e *engine) New(_ context.Context, host wapc.HostCallHandler, guest []byte,
 	}
 	store := wasmer.NewStore(r)
 
-	module, err := wasmer.NewModule(store, guest)
-	if err != nil {
-		return nil, err
+	var module *wasmer.Module
+	if e.cache == nil {
+		module, err = wasmer.NewModule(store, guest)
+		if err != nil {
+			return nil, err
+		}
+	} else {
+		module, err = e.cache(store, guest)
+		if err != nil {
+			return nil, err
+		}
 	}
-
 	return &Module{
 		engine:          r,
 		store:           store,

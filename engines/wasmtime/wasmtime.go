@@ -94,9 +94,11 @@ type CacheImpl func(*wasmtime.Engine, []byte) (*wasmtime.Module, error)
 
 // EngineWithRuntime allows you to customize or return an alternative to
 // DefaultRuntime,
-func EngineWithRuntime(newRuntime NewRuntime, caching CacheImpl) wapc.Engine {
+func EngineWithRuntime(newRuntime NewRuntime, caching ...CacheImpl) wapc.Engine {
 	e := &engine{newRuntime: newRuntime}
-	e.cache = caching
+	if len(caching) > 0 {
+		e.cache = caching[0]
+	}
 	return e
 }
 
