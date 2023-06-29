@@ -129,7 +129,7 @@ func WithRuntime(runtime NewRuntime) OptionFunc {
 	}
 }
 
-// EngineWith allows you to customize or return an alternative to the deault engine
+// EngineWith allows you to customize or return an alternative to the default engine
 func EngineWith(options ...OptionFunc) wapc.Engine {
 	e := &engine{}
 	for _, option := range options {
