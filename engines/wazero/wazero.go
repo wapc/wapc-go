@@ -30,7 +30,10 @@ const functionInit = "wapc_init"
 const functionGuestCall = "__guest_call"
 
 type (
-	engine struct{ newRuntime NewRuntime }
+	engine struct {
+		newRuntime NewRuntime
+		cache      CacheImpl
+	}
 
 	// Module represents a compiled waPC module.
 	Module struct {
@@ -84,12 +87,34 @@ func Engine() wapc.Engine {
 // on wapc.Engine is called. The result is closed upon wapc.Module Close.
 type NewRuntime func(context.Context) (wazero.Runtime, error)
 
-// EngineWithRuntime allows you to customize or return an alternative to
-// DefaultRuntime,
-func EngineWithRuntime(newRuntime NewRuntime) wapc.Engine {
-	return &engine{newRuntime: newRuntime}
+// CacheImpl is to provide the caller with an opportunity to implement compiled unit caching
+// see wasmyime_test.go for an example of a simple cache
+type CacheImpl func(*wazero.Runtime, []byte) (*wazero.Runtime, error)
+
+type OptionFunc func(*engine)
+
+// WithCaching enables caching by using the supplied func to implement the cache via the caller
+func WithCaching(cache CacheImpl) OptionFunc {
+	return func(e *engine) {
+		e.cache = cache
+	}
 }
 
+// WithRuntime enables custom runtime creation and usage by using the supplied func to implement runtime creation via the caller
+func WithRuntime(runtime NewRuntime) OptionFunc {
+	return func(e *engine) {
+		e.newRuntime = runtime
+	}
+}
+
+// EngineWith allows you to customize or return an alternative to the default engine
+func EngineWith(options ...OptionFunc) wapc.Engine {
+	e := &engine{}
+	for _, option := range options {
+		option(e)
+	}
+	return e
+}
 func (e *engine) Name() string {
 	return "wazero"
 }
