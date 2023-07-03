@@ -35,7 +35,7 @@ func TestMain(m *testing.M) {
 
 // TestModule_UnwrapRuntime ensures the Unwrap returns the correct Runtime interface
 func TestModule_UnwrapRuntime(t *testing.T) {
-	m, err := EngineWith(WithRuntime(DefaultRuntime)).New(testCtx, wapc.NoOpHostCallHandler, guest, mc)
+	m, err := EngineWith(WithRuntime(DefaultRuntime)).New(WithContext(testCtx), WithHost(wapc.NoOpHostCallHandler), WithGuest(guest), WithConfig(mc))
 	if err != nil {
 		t.Errorf("Error creating module - %v", err)
 	}
@@ -50,7 +50,7 @@ func TestModule_UnwrapRuntime(t *testing.T) {
 
 // TestModule_WithConfig ensures the module config can be extended
 func TestModule_WithConfig(t *testing.T) {
-	m, err := EngineWith(WithRuntime(DefaultRuntime)).New(testCtx, wapc.NoOpHostCallHandler, guest, mc)
+	m, err := EngineWith(WithRuntime(DefaultRuntime)).New(WithContext(testCtx), WithHost(wapc.NoOpHostCallHandler), WithGuest(guest), WithConfig(mc))
 	if err != nil {
 		t.Errorf("Error creating module - %v", err)
 	}
@@ -78,7 +78,7 @@ func (m *mockModuleConfig) WithSysWalltime() wazero.ModuleConfig {
 
 // TestInstance_UnwrapModule ensures the Unwrap returns the correct api.Module interface
 func TestInstance_UnwrapModule(t *testing.T) {
-	m, err := EngineWith(WithRuntime(DefaultRuntime)).New(testCtx, wapc.NoOpHostCallHandler, guest, mc)
+	m, err := EngineWith(WithRuntime(DefaultRuntime)).New(WithContext(testCtx), WithHost(wapc.NoOpHostCallHandler), WithGuest(guest), WithConfig(mc))
 	if err != nil {
 		t.Errorf("Error creating module - %v", err)
 	}
@@ -113,7 +113,7 @@ func TestEngineWithRuntime(t *testing.T) {
 			return r, nil
 		}))
 
-		m, err := e.New(testCtx, wapc.NoOpHostCallHandler, guest, mc)
+		m, err := e.New(WithContext(testCtx), WithHost(wapc.NoOpHostCallHandler), WithGuest(guest), WithConfig(mc))
 		if err != nil {
 			t.Errorf("Error creating module - %v", err)
 		}
@@ -137,7 +137,7 @@ func TestEngineWithRuntime(t *testing.T) {
 			return nil, expectedErr
 		}))
 
-		if _, err := e.New(testCtx, wapc.NoOpHostCallHandler, guest, mc); err != expectedErr {
+		if _, err := e.New(WithContext(testCtx), WithHost(wapc.NoOpHostCallHandler), WithGuest(guest), WithConfig(mc)); err != expectedErr {
 			t.Errorf("Unexpected error, got %v, expected %v", err, expectedErr)
 		}
 	})

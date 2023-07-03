@@ -92,7 +92,7 @@ func TestEngine_WithEngine(t *testing.T) {
 		e := EngineWith(WithRuntime(func() (*wasmtime.Engine, error) {
 			return expected, nil
 		}), WithCaching(cache))
-		m, err := e.New(testCtx, wapc.NoOpHostCallHandler, guest, mc)
+		m, err := e.New(WithContext(testCtx), WithHost(wapc.NoOpHostCallHandler), WithGuest(guest), WithConfig(mc))
 		if err != nil {
 			t.Errorf("Error creating module - %v", err)
 		}
@@ -108,14 +108,14 @@ func TestEngine_WithEngine(t *testing.T) {
 			return nil, errors.New(expectedErr)
 		}), WithCaching(cache))
 
-		if _, err := e.New(testCtx, wapc.NoOpHostCallHandler, guest, mc); err.Error() != expectedErr {
+		if _, err := e.New(WithContext(testCtx), WithHost(wapc.NoOpHostCallHandler), WithGuest(guest), WithConfig(mc)); err.Error() != expectedErr {
 			t.Errorf("Unexpected error, have %v, expected %v", err, expectedErr)
 		}
 	})
 }
 
 func TestModule_Unwrap(t *testing.T) {
-	m, err := EngineWith(WithRuntime(DefaultRuntime), WithCaching(cache)).New(testCtx, wapc.NoOpHostCallHandler, guest, mc)
+	m, err := EngineWith(WithRuntime(DefaultRuntime), WithCaching(cache)).New(WithContext(testCtx), WithHost(wapc.NoOpHostCallHandler), WithGuest(guest), WithConfig(mc))
 	if err != nil {
 		t.Errorf("Error creating module - %v", err)
 	}
@@ -129,7 +129,7 @@ func TestModule_Unwrap(t *testing.T) {
 }
 
 func TestInstance_Unwrap(t *testing.T) {
-	m, err := EngineWith(WithRuntime(DefaultRuntime), WithCaching(cache)).New(testCtx, wapc.NoOpHostCallHandler, guest, mc)
+	m, err := EngineWith(WithRuntime(DefaultRuntime), WithCaching(cache)).New(WithContext(testCtx), WithHost(wapc.NoOpHostCallHandler), WithGuest(guest), WithConfig(mc))
 	if err != nil {
 		t.Errorf("Error creating module - %v", err)
 	}

@@ -33,6 +33,7 @@ type (
 	engine struct {
 		newRuntime NewRuntime
 		cache      CacheImpl
+		opts       wapc.EngineOption
 	}
 
 	// Module represents a compiled waPC module.
@@ -119,6 +120,10 @@ func (e *engine) Name() string {
 	return "wazero"
 }
 
+func (e *engine) Options() *wapc.EngineOption {
+	return &e.opts
+}
+
 // DefaultRuntime implements NewRuntime by returning a wazero runtime with WASI
 // and AssemblyScript host functions instantiated.
 func DefaultRuntime(ctx context.Context) (wazero.Runtime, error) {
@@ -139,18 +144,51 @@ func DefaultRuntime(ctx context.Context) (wazero.Runtime, error) {
 	return r, nil
 }
 
+// WithContext enables custom runtime creation and usage by using the supplied func to implement runtime creation via the caller
+func WithContext(ctx context.Context) wapc.EngineOptionFn {
+	return func(e wapc.Engine) {
+		e.Options().Ctx = ctx
+	}
+}
+
+// WithHost enables custom runtime creation and usage by using the supplied func to implement runtime creation via the caller
+func WithHost(host wapc.HostCallHandler) wapc.EngineOptionFn {
+	return func(e wapc.Engine) {
+		e.Options().Host = host
+	}
+}
+
+// WithConfig enables custom runtime creation and usage by using the supplied func to implement runtime creation via the caller
+func WithConfig(cfg *wapc.ModuleConfig) wapc.EngineOptionFn {
+	return func(e wapc.Engine) {
+		e.Options().Config = cfg
+	}
+}
+
+// WithGuest enables custom runtime creation and usage by using the supplied func to implement runtime creation via the caller
+func WithGuest(guest []byte) wapc.EngineOptionFn {
+	return func(e wapc.Engine) {
+		e.Options().Guest = guest
+	}
+}
+
 // New implements the same method as documented on wapc.Engine.
-func (e *engine) New(ctx context.Context, host wapc.HostCallHandler, guest []byte, config *wapc.ModuleConfig) (mod wapc.Module, err error) {
+func (e *engine) New(engineOpt ...wapc.EngineOptionFn) (mod wapc.Module, err error) {
+	for _, opt := range engineOpt {
+		opt(e)
+	}
+	ctx := e.opts.Ctx
 	r, err := e.newRuntime(ctx)
 	if err != nil {
 		return nil, err
 	}
 
-	m := &Module{runtime: r, wapcHostCallHandler: host}
+	m := &Module{runtime: r, wapcHostCallHandler: e.opts.Host}
 
 	m.config = wazero.NewModuleConfig().
 		WithStartFunctions(functionStart, functionInit) // Call any WASI or waPC start functions on instantiate.
 
+	config := e.opts.Config
 	if config.Stdout != nil {
 		m.config = m.config.WithStdout(config.Stdout)
 	}
@@ -164,7 +202,7 @@ func (e *engine) New(ctx context.Context, host wapc.HostCallHandler, guest []byt
 		return
 	}
 
-	if m.compiled, err = r.CompileModule(ctx, guest); err != nil {
+	if m.compiled, err = r.CompileModule(ctx, e.opts.Guest); err != nil {
 		_ = r.Close(ctx)
 		return
 	}

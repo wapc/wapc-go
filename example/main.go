@@ -24,11 +24,11 @@ func main() {
 
 	engine := wazero.Engine()
 
-	module, err := engine.New(ctx, host, guest, &wapc.ModuleConfig{
+	module, err := engine.New(wazero.WithContext(ctx), wazero.WithHost(host), wazero.WithGuest(guest), wazero.WithConfig(&wapc.ModuleConfig{
 		Logger: wapc.PrintlnLogger,
 		Stdout: os.Stdout,
 		Stderr: os.Stderr,
-	})
+	}))
 	if err != nil {
 		panic(err)
 	}

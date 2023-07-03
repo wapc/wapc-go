@@ -12,17 +12,27 @@ type (
 	// HostCallHandler is a function to invoke to handle when a guest is performing a host call.
 	HostCallHandler func(ctx context.Context, binding, namespace, operation string, payload []byte) ([]byte, error)
 
+	EngineOption struct {
+		Ctx    context.Context
+		Host   HostCallHandler
+		Guest  []byte
+		Config *ModuleConfig
+	}
+
 	Engine interface {
 		// Name of the engine. Ex. "wazero"
 		Name() string
+		Options() *EngineOption
 
 		// New compiles a new WebAssembly module representing the guest, and
 		// configures the host functions it uses.
 		//   - host: implements host module functions called by the guest
 		//	 - guest: the guest WebAssembly binary (%.wasm) to compile
 		//   - config: configures the host and guest.
-		New(ctx context.Context, host HostCallHandler, guest []byte, config *ModuleConfig) (Module, error)
+		New(engineOpt ...EngineOptionFn) (Module, error)
 	}
+
+	EngineOptionFn func(Engine)
 
 	// ModuleConfig includes parameters to Engine.New.
 	//
@@ -77,4 +87,32 @@ var _ Logger = PrintlnLogger
 // A newline is appended to the end of the message.
 func PrintlnLogger(message string) {
 	println(message)
+}
+
+// WithHost enables custom runtime creation and usage by using the supplied func to implement runtime creation via the caller
+func WithHost(host HostCallHandler) EngineOptionFn {
+	return func(e Engine) {
+		e.Options().Host = host
+	}
+}
+
+// WithContext enables custom runtime creation and usage by using the supplied func to implement runtime creation via the caller
+func WithContext(ctx context.Context) EngineOptionFn {
+	return func(e Engine) {
+		e.Options().Ctx = ctx
+	}
+}
+
+// WithConfig enables custom runtime creation and usage by using the supplied func to implement runtime creation via the caller
+func WithConfig(cfg *ModuleConfig) EngineOptionFn {
+	return func(e Engine) {
+		e.Options().Config = cfg
+	}
+}
+
+// WithGuest enables custom runtime creation and usage by using the supplied func to implement runtime creation via the caller
+func WithGuest(guest []byte) EngineOptionFn {
+	return func(e Engine) {
+		e.Options().Guest = guest
+	}
 }
