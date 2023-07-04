@@ -12,6 +12,7 @@ type (
 	// HostCallHandler is a function to invoke to handle when a guest is performing a host call.
 	HostCallHandler func(ctx context.Context, binding, namespace, operation string, payload []byte) ([]byte, error)
 
+	// EngineOption is a struct that holds the various otions that are used during Engine.New
 	EngineOption struct {
 		Ctx    context.Context
 		Host   HostCallHandler
@@ -32,6 +33,7 @@ type (
 		New(engineOpt ...EngineOptionFn) (Module, error)
 	}
 
+	// EngineOptionFn is the option type for Engine creation
 	EngineOptionFn func(Engine)
 
 	// ModuleConfig includes parameters to Engine.New.
@@ -89,28 +91,28 @@ func PrintlnLogger(message string) {
 	println(message)
 }
 
-// WithHost enables custom runtime creation and usage by using the supplied func to implement runtime creation via the caller
+// WithHost provides the call back handler for the WAPC session
 func WithHost(host HostCallHandler) EngineOptionFn {
 	return func(e Engine) {
 		e.Options().Host = host
 	}
 }
 
-// WithContext enables custom runtime creation and usage by using the supplied func to implement runtime creation via the caller
+// WithContext provides the memory context for the WAPC session
 func WithContext(ctx context.Context) EngineOptionFn {
 	return func(e Engine) {
 		e.Options().Ctx = ctx
 	}
 }
 
-// WithConfig enables custom runtime creation and usage by using the supplied func to implement runtime creation via the caller
+// WithConfig provides the module configuration for the WAPC session
 func WithConfig(cfg *ModuleConfig) EngineOptionFn {
 	return func(e Engine) {
 		e.Options().Config = cfg
 	}
 }
 
-// WithGuest enables custom runtime creation and usage by using the supplied func to implement runtime creation via the caller
+// WithGuest provides a caller provided byte array for the WAPC session
 func WithGuest(guest []byte) EngineOptionFn {
 	return func(e Engine) {
 		e.Options().Guest = guest

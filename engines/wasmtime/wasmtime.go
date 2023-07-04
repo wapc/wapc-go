@@ -132,34 +132,6 @@ func (e *engine) Options() *wapc.EngineOption {
 	return &e.opts
 }
 
-// WithRuntime enables custom runtime creation and usage by using the supplied func to implement runtime creation via the caller
-func WithContext(ctx context.Context) wapc.EngineOptionFn {
-	return func(e wapc.Engine) {
-		e.Options().Ctx = ctx
-	}
-}
-
-// WithHost enables custom runtime creation and usage by using the supplied func to implement runtime creation via the caller
-func WithHost(host wapc.HostCallHandler) wapc.EngineOptionFn {
-	return func(e wapc.Engine) {
-		e.Options().Host = host
-	}
-}
-
-// WithConfig enables custom runtime creation and usage by using the supplied func to implement runtime creation via the caller
-func WithConfig(cfg *wapc.ModuleConfig) wapc.EngineOptionFn {
-	return func(e wapc.Engine) {
-		e.Options().Config = cfg
-	}
-}
-
-// WithGuest enables custom runtime creation and usage by using the supplied func to implement runtime creation via the caller
-func WithGuest(guest []byte) wapc.EngineOptionFn {
-	return func(e wapc.Engine) {
-		e.Options().Guest = guest
-	}
-}
-
 // New implements the same method as documented on wapc.Engine.
 func (e *engine) New(engineOpt ...wapc.EngineOptionFn) (mod wapc.Module, err error) {
 	for _, opt := range engineOpt {

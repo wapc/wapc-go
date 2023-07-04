@@ -24,7 +24,7 @@ func main() {
 
 	engine := wazero.Engine()
 
-	module, err := engine.New(wazero.WithContext(ctx), wazero.WithHost(host), wazero.WithGuest(guest), wazero.WithConfig(&wapc.ModuleConfig{
+	module, err := engine.New(wapc.WithContext(ctx), wapc.WithHost(host), wapc.WithGuest(guest), wapc.WithConfig(&wapc.ModuleConfig{
 		Logger: wapc.PrintlnLogger,
 		Stdout: os.Stdout,
 		Stderr: os.Stderr,

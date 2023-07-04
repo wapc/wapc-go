@@ -24,7 +24,7 @@ func Example_custom() {
 	// Configure waPC to use a specific wasmer feature.
 
 	// Instantiate a module normally.
-	m, err := e.New(WithContext(ctx), WithHost(wapc.NoOpHostCallHandler), WithGuest(guest), WithConfig(mc))
+	m, err := e.New(wapc.WithContext(ctx), wapc.WithHost(wapc.NoOpHostCallHandler), wapc.WithGuest(guest), wapc.WithConfig(mc))
 	if err != nil {
 		log.Panicf("Error creating module - %v\n", err)
 	}
