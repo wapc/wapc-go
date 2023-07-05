@@ -16,7 +16,6 @@ import (
 type (
 	engine struct {
 		newRuntime NewRuntime
-		cache      CacheImpl
 		opts       wapc.EngineOption
 	}
 
@@ -90,18 +89,7 @@ func Engine() wapc.Engine {
 // on wapc.Engine is called. The result is closed upon wapc.Module Close.
 type NewRuntime func() (*wasmtime.Engine, error)
 
-// CacheImpl is to provide the caller with an opportunity to implement compiled unit caching
-// see wasmyime_test.go for an example of a simple cache
-type CacheImpl func(*wasmtime.Engine, []byte) (*wasmtime.Module, error)
-
 type OptionFunc func(*engine)
-
-// WithCaching enables caching by using the supplied func to implement the cache via the caller
-func WithCaching(cache CacheImpl) OptionFunc {
-	return func(e *engine) {
-		e.cache = cache
-	}
-}
 
 // WithRuntime enables custom runtime creation and usage by using the supplied func to implement runtime creation via the caller
 func WithRuntime(runtime NewRuntime) OptionFunc {
@@ -132,7 +120,7 @@ func (e *engine) Options() *wapc.EngineOption {
 	return &e.opts
 }
 
-// New implements the same method as documented on wapc.Engine.
+// New implements the same method as documentedEngineWith on wapc.Engine.
 func (e *engine) New(engineOpt ...wapc.EngineOptionFn) (mod wapc.Module, err error) {
 	for _, opt := range engineOpt {
 		opt(e)
@@ -146,16 +134,9 @@ func (e *engine) New(engineOpt ...wapc.EngineOptionFn) (mod wapc.Module, err err
 	// Note: wasmtime does not support writer-based stdout/stderr
 	store.SetWasi(wasiConfig)
 	var module *wasmtime.Module
-	if e.cache == nil {
-		module, err = wasmtime.NewModule(r, e.opts.Guest)
-		if err != nil {
-			return nil, err
-		}
-	} else {
-		module, err = e.cache(r, e.opts.Guest)
-		if err != nil {
-			return nil, err
-		}
+	module, err = wasmtime.NewModule(r, e.opts.Guest)
+	if err != nil {
+		return nil, err
 	}
 
 	return &Module{

@@ -5,10 +5,8 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"errors"
-	"fmt"
 	"log"
 	"os"
-	"path/filepath"
 	"testing"
 
 	"github.com/bytecodealliance/wasmtime-go"
@@ -43,38 +41,6 @@ func sha256FromBytes(guest []byte) string {
 	return hex.EncodeToString(hash.Sum(nil))
 }
 
-var cache = func(r *wasmtime.Engine, b []byte) (*wasmtime.Module, error) {
-	td := os.TempDir()
-	basePath := filepath.Join(td, "wapc-cache", "wapc-wasmtime", "1.0.0")
-	if err := os.MkdirAll(basePath, 0755); err != nil && !os.IsExist(err) {
-		return nil, fmt.Errorf("failed to create cache directory: %w", err)
-	}
-	sha := sha256FromBytes(guest)
-	cachePath := filepath.Join(basePath, sha)
-	f, err := os.ReadFile(cachePath)
-	var module *wasmtime.Module
-	if err != nil {
-		module, err = wasmtime.NewModule(r, guest)
-		if err != nil {
-			return nil, err
-		}
-		compiled, err := module.Serialize()
-		if err != nil {
-			return nil, err
-		}
-		err = os.WriteFile(cachePath, compiled, 0444)
-		if err != nil {
-			return nil, err
-		}
-	} else {
-		module, err = wasmtime.NewModuleDeserialize(r, f)
-		if err != nil {
-			return nil, err
-		}
-	}
-	return module, nil
-}
-
 // TestMain ensures we can read the example wasm prior to running unit tests.
 func TestMain(m *testing.M) {
 	var err error
@@ -91,7 +57,7 @@ func TestEngine_WithEngine(t *testing.T) {
 
 		e := EngineWith(WithRuntime(func() (*wasmtime.Engine, error) {
 			return expected, nil
-		}), WithCaching(cache))
+		}))
 		m, err := e.New(wapc.WithContext(testCtx), wapc.WithHost(wapc.NoOpHostCallHandler), wapc.WithGuest(guest), wapc.WithConfig(mc))
 		if err != nil {
 			t.Errorf("Error creating module - %v", err)
@@ -102,11 +68,33 @@ func TestEngine_WithEngine(t *testing.T) {
 			t.Errorf("Unexpected engine, have %v, expected %v", have, expected)
 		}
 	})
+	t.Run("ok", func(t *testing.T) {
+		cfg := wasmtime.NewConfig()
+		err := cfg.CacheConfigLoadDefault()
+		if err != nil {
+			t.Errorf("Error failed to configure cache - %v", err)
+		}
+		expected := wasmtime.NewEngineWithConfig(cfg)
+
+		e := EngineWith(WithRuntime(func() (*wasmtime.Engine, error) {
+			return expected, nil
+		}))
+		m, err := e.New(wapc.WithContext(testCtx), wapc.WithHost(wapc.NoOpHostCallHandler), wapc.WithGuest(guest), wapc.WithConfig(mc))
+		if err != nil {
+			t.Errorf("Error creating module - %v", err)
+		}
+		defer m.Close(testCtx)
+
+		if have := m.(*Module).engine; have != expected {
+			t.Errorf("Unexpected engine, have %v, expected %v", have, expected)
+		}
+	})
+
 	t.Run("nil not ok", func(t *testing.T) {
 		expectedErr := "function set by WithEngine returned nil"
 		e := EngineWith(WithRuntime(func() (*wasmtime.Engine, error) {
 			return nil, errors.New(expectedErr)
-		}), WithCaching(cache))
+		}))
 
 		if _, err := e.New(wapc.WithContext(testCtx), wapc.WithHost(wapc.NoOpHostCallHandler), wapc.WithGuest(guest), wapc.WithConfig(mc)); err.Error() != expectedErr {
 			t.Errorf("Unexpected error, have %v, expected %v", err, expectedErr)
@@ -115,7 +103,7 @@ func TestEngine_WithEngine(t *testing.T) {
 }
 
 func TestModule_Unwrap(t *testing.T) {
-	m, err := EngineWith(WithRuntime(DefaultRuntime), WithCaching(cache)).New(wapc.WithContext(testCtx), wapc.WithHost(wapc.NoOpHostCallHandler), wapc.WithGuest(guest), wapc.WithConfig(mc))
+	m, err := EngineWith(WithRuntime(DefaultRuntime)).New(wapc.WithContext(testCtx), wapc.WithHost(wapc.NoOpHostCallHandler), wapc.WithGuest(guest), wapc.WithConfig(mc))
 	if err != nil {
 		t.Errorf("Error creating module - %v", err)
 	}
@@ -129,7 +117,7 @@ func TestModule_Unwrap(t *testing.T) {
 }
 
 func TestInstance_Unwrap(t *testing.T) {
-	m, err := EngineWith(WithRuntime(DefaultRuntime), WithCaching(cache)).New(wapc.WithContext(testCtx), wapc.WithHost(wapc.NoOpHostCallHandler), wapc.WithGuest(guest), wapc.WithConfig(mc))
+	m, err := EngineWith(WithRuntime(DefaultRuntime)).New(wapc.WithContext(testCtx), wapc.WithHost(wapc.NoOpHostCallHandler), wapc.WithGuest(guest), wapc.WithConfig(mc))
 	if err != nil {
 		t.Errorf("Error creating module - %v", err)
 	}
