@@ -2,8 +2,6 @@ package wasmtime
 
 import (
 	"context"
-	"crypto/sha256"
-	"encoding/hex"
 	"errors"
 	"log"
 	"os"
@@ -22,23 +20,6 @@ var mc = &wapc.ModuleConfig{
 	Logger: wapc.PrintlnLogger,
 	Stdout: os.Stdout,
 	Stderr: os.Stderr,
-}
-
-func sha256FromBytes(guest []byte) string {
-	hash := sha256.New()
-
-	// Read the first 64K bytes from the file
-	maxbufferSize := 64 * 1024
-
-	if len(guest) < maxbufferSize {
-		maxbufferSize = len(guest)
-	}
-
-	// Write the read bytes to the hash object
-	hash.Write(guest[:maxbufferSize])
-
-	// Get the hash sum as a byte slice
-	return hex.EncodeToString(hash.Sum(nil))
 }
 
 // TestMain ensures we can read the example wasm prior to running unit tests.
