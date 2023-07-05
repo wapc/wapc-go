@@ -20,6 +20,8 @@ type (
 		Config *ModuleConfig
 	}
 
+	// Engine is the WASM engine abstraction for WAPC
+	// All engines must implement this interface
 	Engine interface {
 		// Name of the engine. Ex. "wazero"
 		Name() string
@@ -30,7 +32,10 @@ type (
 		//   - host: implements host module functions called by the guest
 		//	 - guest: the guest WebAssembly binary (%.wasm) to compile
 		//   - config: configures the host and guest.
-		New(engineOpt ...EngineOptionFn) (Module, error)
+		New(ctx context.Context, host HostCallHandler, guest []byte, config *ModuleConfig) (mod Module, err error)
+
+		// NewWith an option type pattern for New
+		NewWith(engineOpt ...EngineOptionFn) (Module, error)
 	}
 
 	// EngineOptionFn is the option type for Engine creation

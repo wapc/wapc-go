@@ -89,11 +89,11 @@ func TestEngine_WithEngine(t *testing.T) {
 	t.Run("ok", func(t *testing.T) {
 		expected := wasmer.NewEngine()
 
-		e := EngineWith(WithRuntime(func() (*wasmer.Engine, error) {
+		e := Engine(WithRuntime(func() (*wasmer.Engine, error) {
 			return expected, nil
 		}), WithCaching(cache))
 
-		m, err := e.New(wapc.WithContext(testCtx), wapc.WithHost(wapc.NoOpHostCallHandler), wapc.WithGuest(guest), wapc.WithConfig(mc))
+		m, err := e.New(testCtx, wapc.NoOpHostCallHandler, guest, mc)
 		if err != nil {
 			t.Errorf("Error creating module - %v", err)
 		}
@@ -106,18 +106,18 @@ func TestEngine_WithEngine(t *testing.T) {
 
 	t.Run("nil not ok", func(t *testing.T) {
 		expectedErr := "function set by WithEngine returned nil"
-		e := EngineWith(WithRuntime(func() (*wasmer.Engine, error) {
+		e := Engine(WithRuntime(func() (*wasmer.Engine, error) {
 			return nil, errors.New(expectedErr)
 		}), WithCaching(cache))
 
-		if _, err := e.New(wapc.WithContext(testCtx), wapc.WithHost(wapc.NoOpHostCallHandler), wapc.WithGuest(guest), wapc.WithConfig(mc)); err.Error() != expectedErr {
+		if _, err := e.New(testCtx, wapc.NoOpHostCallHandler, guest, mc); err.Error() != expectedErr {
 			t.Errorf("Unexpected error, have %v, expected %v", err, expectedErr)
 		}
 	})
 }
 
 func TestModule_Unwrap(t *testing.T) {
-	m, err := EngineWith(WithRuntime(DefaultRuntime), WithCaching(cache)).New(wapc.WithContext(testCtx), wapc.WithHost(wapc.NoOpHostCallHandler), wapc.WithGuest(guest), wapc.WithConfig(mc))
+	m, err := Engine(WithRuntime(DefaultRuntime), WithCaching(cache)).New(testCtx, wapc.NoOpHostCallHandler, guest, mc)
 	if err != nil {
 		t.Errorf("Error creating module - %v", err)
 	}
@@ -131,7 +131,7 @@ func TestModule_Unwrap(t *testing.T) {
 }
 
 func TestInstance_Unwrap(t *testing.T) {
-	m, err := EngineWith(WithRuntime(DefaultRuntime), WithCaching(cache)).New(wapc.WithContext(testCtx), wapc.WithHost(wapc.NoOpHostCallHandler), wapc.WithGuest(guest), wapc.WithConfig(mc))
+	m, err := Engine(WithRuntime(DefaultRuntime), WithCaching(cache)).NewWith(wapc.WithContext(testCtx), wapc.WithHost(wapc.NoOpHostCallHandler), wapc.WithGuest(guest), wapc.WithConfig(mc))
 	if err != nil {
 		t.Errorf("Error creating module - %v", err)
 	}

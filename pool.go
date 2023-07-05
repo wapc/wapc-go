@@ -16,7 +16,7 @@ type (
 		module    Module
 		instances []Instance
 	}
-
+	// InstanceInitialize defines the signatire of all engine instance initializers
 	InstanceInitialize func(instance Instance) error
 )
 

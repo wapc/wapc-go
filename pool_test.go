@@ -35,7 +35,7 @@ func TestGuestsWithPool(t *testing.T) {
 					payload := []byte("Testing")
 
 					// Create new module with a callback function
-					m, err := engine.New(wapc.WithContext(ctx), wapc.WithHost(host), wapc.WithGuest(guest), wapc.WithConfig(&wapc.ModuleConfig{}))
+					m, err := engine.NewWith(wapc.WithContext(ctx), wapc.WithHost(host), wapc.WithGuest(guest), wapc.WithConfig(&wapc.ModuleConfig{}))
 					if err != nil {
 						t.Errorf("Error creating module - %s", err)
 					}

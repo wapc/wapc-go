@@ -79,11 +79,6 @@ var _ = (wapc.Instance)((*Instance)(nil))
 
 var engineInstance = engine{newRuntime: DefaultRuntime}
 
-// Engine returns a new wapc.Engine which uses the DefaultRuntime.
-func Engine() wapc.Engine {
-	return &engineInstance
-}
-
 // NewRuntime returns a new wazero runtime which is called when the New method
 // on wapc.Engine is called. The result is closed upon wapc.Module Close.
 type NewRuntime func(context.Context) (wazero.Runtime, error)
@@ -108,8 +103,11 @@ func WithRuntime(runtime NewRuntime) OptionFunc {
 	}
 }
 
-// EngineWith allows you to customize or return an alternative to the default engine
-func EngineWith(options ...OptionFunc) wapc.Engine {
+// Engine allows you to customize or return an alternative to the default engine
+func Engine(options ...OptionFunc) wapc.Engine {
+	if len(options) == 0 {
+		return &engineInstance
+	}
 	e := &engine{}
 	for _, option := range options {
 		option(e)
@@ -144,8 +142,12 @@ func DefaultRuntime(ctx context.Context) (wazero.Runtime, error) {
 	return r, nil
 }
 
+func (e *engine) New(ctx context.Context, host wapc.HostCallHandler, guest []byte, config *wapc.ModuleConfig) (mod wapc.Module, err error) {
+	return e.NewWith(wapc.WithContext(ctx), wapc.WithHost(host), wapc.WithGuest(guest), wapc.WithConfig(config))
+}
+
 // New implements the same method as documented on wapc.Engine.
-func (e *engine) New(engineOpt ...wapc.EngineOptionFn) (mod wapc.Module, err error) {
+func (e *engine) NewWith(engineOpt ...wapc.EngineOptionFn) (mod wapc.Module, err error) {
 	for _, opt := range engineOpt {
 		opt(e)
 	}
@@ -346,11 +348,11 @@ func (w *wapcHost) guestResponse(ctx context.Context, m api.Module, params []uin
 	ptr := uint32(params[0])
 	len := uint32(params[1])
 
-	if ic := fromInvokeContext(ctx); ic == nil {
+	ic := fromInvokeContext(ctx)
+	if ic == nil {
 		return // no invoke context
-	} else {
-		ic.guestResp = requireRead(m.Memory(), "guestResp", ptr, len)
 	}
+	ic.guestResp = requireRead(m.Memory(), "guestResp", ptr, len)
 }
 
 // guestError is the WebAssembly function export "__guest_error", which reads invokeContext.guestErr from the given
@@ -359,11 +361,11 @@ func (w *wapcHost) guestError(ctx context.Context, m api.Module, params []uint64
 	ptr := uint32(params[0])
 	len := uint32(params[1])
 
-	if ic := fromInvokeContext(ctx); ic == nil {
+	ic := fromInvokeContext(ctx)
+	if ic == nil {
 		return // no invoke context
-	} else {
-		ic.guestErr = requireReadString(m.Memory(), "guestErr", ptr, len)
 	}
+	ic.guestErr = requireReadString(m.Memory(), "guestErr", ptr, len)
 }
 
 // hostError is the WebAssembly function export "__host_error", which writes the invokeContext.hostErr to the given

@@ -46,11 +46,11 @@ func TestGuests(t *testing.T) {
 					payload := []byte("Testing")
 
 					// Create new module with a callback function
-					m, err := engine.New(wapc.WithContext(ctx), wapc.WithHost(host), wapc.WithGuest(guest), wapc.WithConfig(&wapc.ModuleConfig{
+					m, err := engine.New(ctx, host, guest, &wapc.ModuleConfig{
 						Logger: wapc.PrintlnLogger,
 						Stdout: os.Stdout,
 						Stderr: os.Stderr,
-					}))
+					})
 					if err != nil {
 						t.Errorf("Error creating module - %s", err)
 					}
@@ -110,7 +110,7 @@ func TestModuleBadBytes(t *testing.T) {
 		t.Run(engine.Name(), func(t *testing.T) {
 			host := wapc.NoOpHostCallHandler
 			guest := []byte("Do not do this at home kids")
-			_, err := engine.New(wapc.WithContext(ctx), wapc.WithHost(host), wapc.WithGuest(guest), wapc.WithConfig(&wapc.ModuleConfig{}))
+			_, err := engine.New(ctx, host, guest, &wapc.ModuleConfig{})
 			if err == nil {
 				t.Errorf("Expected error when creating module with invalid wasm, got nil")
 			}
@@ -132,11 +132,11 @@ func TestModule(t *testing.T) {
 			payload := []byte("Testing")
 
 			// Create new module with a NoOpCallback function
-			m, err := engine.New(wapc.WithContext(ctx), wapc.WithHost(host), wapc.WithGuest(guest), wapc.WithConfig(&wapc.ModuleConfig{
+			m, err := engine.New(ctx, host, guest, &wapc.ModuleConfig{
 				Logger: wapc.PrintlnLogger,
 				Stdout: os.Stdout,
 				Stderr: os.Stderr,
-			}))
+			})
 			if err != nil {
 				t.Errorf("Error creating module - %s", err)
 			}

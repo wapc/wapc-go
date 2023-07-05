@@ -18,13 +18,13 @@ func Example_custom() {
 	ctx := context.Background()
 	cfg := wasmtime.NewConfig()
 	cfg.SetWasmMemory64(true)
-	e := EngineWith(WithRuntime(func() (*wasmtime.Engine, error) {
+	e := Engine(WithRuntime(func() (*wasmtime.Engine, error) {
 		return wasmtime.NewEngineWithConfig(cfg), nil
 	}))
 	// Configure waPC to use a specific wasmer feature.
 
 	// Instantiate a module normally.
-	m, err := e.New(wapc.WithContext(ctx), wapc.WithHost(wapc.NoOpHostCallHandler), wapc.WithGuest(guest), wapc.WithConfig(mc))
+	m, err := e.New(ctx, wapc.NoOpHostCallHandler, guest, mc)
 	if err != nil {
 		log.Panicf("Error creating module - %v\n", err)
 	}

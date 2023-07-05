@@ -80,11 +80,6 @@ var _ = (wapc.Instance)((*Instance)(nil))
 
 var engineInstance = engine{newRuntime: DefaultRuntime}
 
-// Engine returns a new wapc.Engine which uses the DefaultRuntime.
-func Engine() wapc.Engine {
-	return &engineInstance
-}
-
 // NewRuntime returns a new wazero runtime which is called when the New method
 // on wapc.Engine is called. The result is closed upon wapc.Module Close.
 type NewRuntime func() (*wasmtime.Engine, error)
@@ -98,8 +93,11 @@ func WithRuntime(runtime NewRuntime) OptionFunc {
 	}
 }
 
-// EngineWith allows you to customize or return an alternative to the default engine
-func EngineWith(options ...OptionFunc) wapc.Engine {
+// Engine allows you to customize or return an alternative to the default engine
+func Engine(options ...OptionFunc) wapc.Engine {
+	if len(options) == 0 {
+		return &engineInstance
+	}
 	e := &engine{}
 	for _, option := range options {
 		option(e)
@@ -120,8 +118,12 @@ func (e *engine) Options() *wapc.EngineOption {
 	return &e.opts
 }
 
+func (e *engine) New(ctx context.Context, host wapc.HostCallHandler, guest []byte, config *wapc.ModuleConfig) (mod wapc.Module, err error) {
+	return e.NewWith(wapc.WithContext(ctx), wapc.WithHost(host), wapc.WithGuest(guest), wapc.WithConfig(config))
+}
+
 // New implements the same method as documentedEngineWith on wapc.Engine.
-func (e *engine) New(engineOpt ...wapc.EngineOptionFn) (mod wapc.Module, err error) {
+func (e *engine) NewWith(engineOpt ...wapc.EngineOptionFn) (mod wapc.Module, err error) {
 	for _, opt := range engineOpt {
 		opt(e)
 	}
