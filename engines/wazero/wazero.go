@@ -124,7 +124,7 @@ func (e *engine) New(ctx context.Context, host wapc.HostCallHandler, guest []byt
 	m := &Module{runtime: r, wapcHostCallHandler: host}
 
 	m.config = wazero.NewModuleConfig().
-		WithStartFunctions(functionStart, functionInit) // Call any WASI or waPC start functions on instantiate.
+		WithStartFunctions() // Manually call _start and _init
 
 	if config.Stdout != nil {
 		m.config = m.config.WithStdout(config.Stdout)
@@ -369,6 +369,21 @@ func (m *Module) Instantiate(ctx context.Context) (wapc.Instance, error) {
 	module, err := m.runtime.InstantiateModule(ctx, m.compiled, m.config.WithName(moduleName))
 	if err != nil {
 		return nil, err
+	}
+
+	// Call any WASI or waPC start functions on instantiate.
+	funcs := []string{functionStart, functionInit}
+	for _, f := range funcs {
+		exportedFunc := module.ExportedFunction(f)
+		if exportedFunc != nil {
+			ic := invokeContext{operation: f, guestReq: nil}
+			ictx := newInvokeContext(ctx, &ic)
+			if _, err := exportedFunc.Call(ictx); err != nil {
+				module.Close(ctx)
+
+				return nil, fmt.Errorf("error calling %s: %v", f, err)
+			}
+		}
 	}
 
 	instance := Instance{name: moduleName, m: module}
