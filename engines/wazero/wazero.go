@@ -2,6 +2,7 @@ package wazero
 
 import (
 	"context"
+	"crypto/rand"
 	"errors"
 	"fmt"
 	"sync/atomic"
@@ -132,6 +133,8 @@ func (e *engine) New(ctx context.Context, host wapc.HostCallHandler, guest []byt
 	if config.Stderr != nil {
 		m.config = m.config.WithStderr(config.Stderr)
 	}
+	m.config = m.config.WithRandSource(rand.Reader).WithSysNanosleep().WithSysNanotime().WithSysWalltime()
+
 	mod = m
 
 	if _, err = instantiateWapcHost(ctx, r, m.wapcHostCallHandler, config.Logger); err != nil {
