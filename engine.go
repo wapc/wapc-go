@@ -35,6 +35,17 @@ type (
 		Stdout io.Writer
 		// Stderr is the writer WASI uses for `fd_write` to file descriptor 2.
 		Stderr io.Writer
+		// CloseOnContextDone ensures the executions of functions to be closed under one of the following circumstances:
+		//
+		// 	- context.Context passed to the Call method of api.Function is canceled during execution. (i.e. ctx by context.WithCancel)
+		// 	- context.Context passed to the Call method of api.Function reaches timeout during execution. (i.e. ctx by context.WithTimeout or context.WithDeadline)
+		// 	- Close or CloseWithExitCode of api.Module is explicitly called during execution.
+		//
+		// This is especially useful when one wants to run untrusted Wasm binaries since otherwise, any invocation of
+		// api.Function can potentially block the corresponding Goroutine forever. Moreover, it might block the
+		// entire underlying OS thread which runs the api.Function call. See "Why it's safe to execute runtime-generated
+		// machine codes against async Goroutine preemption" section in internal/engine/compiler/RATIONALE.md for detail.
+		CloseOnContextDone bool
 	}
 
 	// Module is a WebAssembly Module.
