@@ -37,6 +37,8 @@ jobs:
 
     - name: Build Wasm
       run: make build-wasm
+      env:
+        GOFLAGS: ""
 
     - name: Test
       run: go test -v ./...
