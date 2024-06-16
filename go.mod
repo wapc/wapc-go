@@ -1,6 +1,6 @@
 module github.com/wapc/wapc-go
 
-go 1.18
+go 1.20
 
 require (
 	github.com/Workiva/go-datastructures v1.1.5
