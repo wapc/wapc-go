@@ -6,15 +6,16 @@ import (
 	wapc "github.com/wapc/wapc-guest-tinygo"
 )
 
-func main() {
+//go:wasmexport wapc_init
+func Initialize() {
 	// Register echo and fail functions
 	wapc.RegisterFunctions(wapc.Functions{
-		"hello": hello,
+		"hello": Hello,
 	})
 }
 
-// hello will callback the host and return the payload
-func hello(payload []byte) ([]byte, error) {
+// Hello will callback the host and return the payload
+func Hello(payload []byte) ([]byte, error) {
 	fmt.Println("hello called")
 	// Make a host call to capitalize the name.
 	nameBytes, err := wapc.HostCall("", "example", "capitalize", payload)

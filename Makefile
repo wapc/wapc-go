@@ -3,7 +3,10 @@
 tests: 
 	@echo "Executing Go tests"
 	mkdir -p .coverage
-	go test -v -covermode=count -coverprofile=.coverage/coverage.out ./...
+	go test -v -covermode=count -coverprofile=.coverage/coverage.out \
+		./engines/wasmer/... \
+		./engines/wasmtime/... \
+		./engines/wazero/...
 	go tool cover -html=.coverage/coverage.out -o .coverage/coverage.html
 
 build-wasm: build-as build-example build-go build-rust
