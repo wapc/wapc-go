@@ -28,3 +28,6 @@ vendor
 
 # Mac stuff
 .DS_Store
+
+# Generated wasm files
+*.wasm
