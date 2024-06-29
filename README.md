@@ -1,4 +1,9 @@
-# waPC Host for Go [![Gitter](https://badges.gitter.im/wapc/community.svg)](https://gitter.im/wapc/community)
+# waPC Host for Go
+
+[![Gitter](https://badges.gitter.im/wapc/community.svg)](https://gitter.im/wapc/community)
+[![PkgGoDev](https://pkg.go.dev/badge/github.com/wapc/wapc-go)](https://pkg.go.dev/github.com/wapc/wapc-go)
+[![Go Report Card](https://goreportcard.com/badge/github.com/wapc/wapc-go)](https://goreportcard.com/report/github.com/wapc/wapc-go)
+[![go tests](https://github.com/wapc/wapc-go/actions/workflows/go-test.yml/badge.svg)](https://github.com/wapc/wapc-go/actions/workflows/go-test.yml)
 
 This is the Golang implementation of the **waPC** standard for WebAssembly host runtimes. It allows any WebAssembly module to be loaded as a guest and receive requests for invocation as well as to make its own function requests of the host.
 
