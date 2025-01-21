@@ -13,8 +13,10 @@ import (
 	"github.com/wapc/wapc-go"
 )
 
+type testKey struct{}
+
 // testCtx is an arbitrary, non-default context. Non-nil also prevents linter errors.
-var testCtx = context.WithValue(context.Background(), struct{}{}, "arbitrary")
+var testCtx = context.WithValue(context.Background(), testKey{}, "arbitrary")
 
 var guest []byte
 var mc = &wapc.ModuleConfig{
@@ -102,9 +104,7 @@ func TestEngineWithRuntime(t *testing.T) {
 
 		if _, err := wasi_snapshot_preview1.Instantiate(testCtx, r); err != nil {
 			_ = r.Close(testCtx)
-			if err != nil {
-				t.Errorf("Error creating module - %v", err)
-			}
+			t.Errorf("Error creating module - %v", err)
 		}
 
 		// TinyGo doesn't need the AssemblyScript host functions which are
