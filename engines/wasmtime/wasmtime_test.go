@@ -12,8 +12,10 @@ import (
 	"github.com/wapc/wapc-go"
 )
 
+type testKey struct{}
+
 // testCtx is an arbitrary, non-default context. Non-nil also prevents linter errors.
-var testCtx = context.WithValue(context.Background(), struct{}{}, "arbitrary")
+var testCtx = context.WithValue(context.Background(), testKey{}, "arbitrary")
 
 var guest []byte
 var mc = &wapc.ModuleConfig{

@@ -7,7 +7,6 @@ import (
 	"time"
 
 	"github.com/wapc/wapc-go"
-	"github.com/wapc/wapc-go/engines/wasmer"
 	"github.com/wapc/wapc-go/engines/wasmtime"
 	"github.com/wapc/wapc-go/engines/wazero"
 )
@@ -15,7 +14,7 @@ import (
 var ctx = context.Background()
 
 var engines = []wapc.Engine{
-	wasmer.Engine(),
+	// wasmer.Engine(),
 	wasmtime.Engine(),
 	wazero.Engine(),
 }
