@@ -11,6 +11,7 @@ import (
 	"github.com/tetratelabs/wazero/api"
 	"github.com/tetratelabs/wazero/imports/assemblyscript"
 	"github.com/tetratelabs/wazero/imports/wasi_snapshot_preview1"
+	"github.com/tetratelabs/wazero/sys"
 
 	"github.com/wapc/wapc-go"
 )
@@ -22,8 +23,11 @@ const i32 = api.ValueTypeI32
 // See https://github.com/WebAssembly/WASI/blob/snapshot-01/design/application-abi.md#current-unstable-abi
 const functionStart = "_start"
 
+// functionInitialize is the name of the function to initialize the runtime.
+const functionInitialize = "_initialize"
+
 // functionInit is the name of the nullary function that initializes waPC.
-const functionInit = "wapc_init"
+const functionWapcInit = "wapc_init"
 
 // functionGuestCall is a callback required to be exported. Below is its signature in WebAssembly 1.0 (MVP) Text Format:
 //
@@ -375,16 +379,24 @@ func (m *Module) Instantiate(ctx context.Context) (wapc.Instance, error) {
 	}
 
 	// Call any WASI or waPC start functions on instantiate.
-	funcs := []string{functionStart, functionInit}
+	funcs := []string{functionStart, functionInitialize, functionWapcInit}
 	for _, f := range funcs {
 		exportedFunc := module.ExportedFunction(f)
 		if exportedFunc != nil {
 			ic := invokeContext{operation: f, guestReq: nil}
 			ictx := newInvokeContext(ctx, &ic)
 			if _, err := exportedFunc.Call(ictx); err != nil {
-				module.Close(ctx)
+				if exitErr, ok := err.(*sys.ExitError); ok {
+					if exitErr.ExitCode() != 0 {
+						module.Close(ctx)
 
-				return nil, fmt.Errorf("error calling %s: %v", f, err)
+						return nil, fmt.Errorf("module closed with exit_code(%d)", exitErr.ExitCode())
+					}
+				} else {
+					module.Close(ctx)
+
+					return nil, fmt.Errorf("error calling %s: %v", f, err)
+				}
 			}
 		}
 	}
