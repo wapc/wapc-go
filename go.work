@@ -1,10 +1,11 @@
 go 1.23.0
 
 use (
-    .
-    ./engines/wasmer
-    ./engines/wasmtime
-    ./engines/wazero
-    ./example
-    ./hello
+	.
+	./engines/wasmer
+	./engines/wasmtime
+	./engines/wazero
+	./example
+	./hello
+	./testdata/go
 )

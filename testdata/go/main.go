@@ -18,7 +18,10 @@ func Initialize() {
 // Echo will callback the host and return the payload
 func Echo(payload []byte) ([]byte, error) {
 	// Callback with Payload
-	wapc.HostCall("wapc", "testing", "echo", payload)
+	_, err := wapc.HostCall("wapc", "testing", "echo", payload)
+	if err != nil {
+		return []byte(""), err
+	}
 	return payload, nil
 }
 

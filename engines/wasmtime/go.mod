@@ -9,6 +9,6 @@ require (
 	github.com/wapc/wapc-go v0.0.0
 )
 
-require github.com/Workiva/go-datastructures v1.0.53 // indirect
+require github.com/Workiva/go-datastructures v1.1.5 // indirect
 
 replace github.com/wapc/wapc-go => ../..
