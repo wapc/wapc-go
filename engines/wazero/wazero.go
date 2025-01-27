@@ -121,9 +121,17 @@ func DefaultRuntime(ctx context.Context) (wazero.Runtime, error) {
 
 // New implements the same method as documented on wapc.Engine.
 func (e *engine) New(ctx context.Context, host wapc.HostCallHandler, guest []byte, config *wapc.ModuleConfig) (mod wapc.Module, err error) {
-	r, err := e.newRuntime(ctx)
-	if err != nil {
-		return nil, err
+	//runtime conf changes
+	var r wazero.Runtime
+	if config.CloseOnContextDone {
+		runtimeConfig := wazero.NewRuntimeConfig().WithCloseOnContextDone(true)
+		r = wazero.NewRuntimeWithConfig(ctx, runtimeConfig)
+		wasi_snapshot_preview1.MustInstantiate(ctx, r)
+	} else {
+		r, err = e.newRuntime(ctx)
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	m := &Module{runtime: r, wapcHostCallHandler: host}
